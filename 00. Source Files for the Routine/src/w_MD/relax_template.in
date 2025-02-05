@@ -1,0 +1,24 @@
+# Initialize LAMMPS
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# Read data from POSCAR file
+include src/structure.mod
+include src/potential.mod
+
+thermo_style custom step temp pe ke etotal vol
+thermo 50
+
+# do not let the cell volume change from the NPT volume
+fix holdBox all deform 1 x final 0.0 0.0 y final 0.0 0.0 z final 0.0 0.0 units box remap v
+
+# Perform relaxation
+min_style cg
+minimize 1e-8 1e-8 7500 15000
+
+variable etotal equal pe
+print "${etotal}" file energy.txt
+
+write_data CONTCAR.data nocoeff
