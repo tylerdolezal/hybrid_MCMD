@@ -1,4 +1,4 @@
-# Initialize LAMMPS
+   # Initialize LAMMPS
 units metal
 dimension 3
 boundary p p p
@@ -11,25 +11,17 @@ include src/potential.mod
 thermo 100
 thermo_style custom step temp pe ke etotal press vol
 
-velocity all create TEMP_INIT 4928459 rot yes dist gaussian
-
-# Define the thermostat and barostat settings (Nose-Hoover thermostat and barostat)
-variable dt equal 0.001  # Timestep in picoseconds
-
-# Nose-Hoover NPT ensemble for temperature and pressure control
-fix 1 all npt temp TEMP_INIT TEMP_FINAL $(100.0*dt) iso 1.0 1.0 $(1000.0*dt) tchain 3 pchain 3
-
-timestep 0.001
-
-run 500
-
-unfix 1
-
 fix 1 all box/relax iso 0.0
 
 # Perform relaxation
 min_style cg
-minimize 1e-10 1e-10 10000 15000
+minimize 1e-10 1e-10 15000 15000
+
+unfix 1
+
+# Perform relaxation
+min_style cg
+minimize 1e-10 1e-10 15000 15000
 
 variable etotal equal pe
 print "${etotal}" file energy.txt

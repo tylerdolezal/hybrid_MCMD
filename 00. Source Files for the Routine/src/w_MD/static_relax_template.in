@@ -21,7 +21,14 @@ fix avePE all ave/time 1 20 20 c_PE ave one
 
 timestep 0.001
 
-run 0
+#run 0
+
+# do not let the cell volume change from the NPT volume
+fix holdBox all deform 1 x final 0.0 0.0 y final 0.0 0.0 z final 0.0 0.0 units box remap v
+
+# Perform relaxation
+min_style cg
+minimize 1e-10 1e-10 15000 15000
  
 variable etotal equal pe
 print "${etotal}" file energy.txt

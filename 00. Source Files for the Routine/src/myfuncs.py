@@ -1,12 +1,41 @@
 from ase.neighborlist import natural_cutoffs
+from itertools import combinations
 import src.lammps_functions as fun
+import matplotlib.pyplot as plt
 from ase.io import read, write
 from ase.build import bulk
+
 import pandas as pd
 import numpy as np
 import random
 import copy
 import os
+
+interstitials = ["B", "C", "O", "N", "H"]
+ignore = ["Cl"]
+
+common_structures = {
+    # Nickel-based superalloy elements
+    "Ni": "fcc",   # Base element for Ni superalloys
+    "Co": "hcp",   # Strengthens γ' phase (can be fcc at high temp)
+    "Cr": "bcc",   # Oxidation resistance, stabilizes γ phase
+    "Fe": "bcc",   # Present in some superalloys & stainless steels
+    "Mo": "bcc",   # Strengthens γ phase, creep resistance
+    "Nb": "bcc",   # Forms NbC/Nb3C phases for carbide strengthening
+    "Ti": "hcp",   # Strengthens γ' phase (TiAl)
+    "Al": "fcc",   # Key for γ' phase formation (Ni3Al)
+    "W": "bcc",    # Solid solution strengthening, creep resistance
+    "Ta": "bcc",   # Similar role as W, improves oxidation resistance
+    "Re": "hcp",   # Used in advanced single-crystal superalloys
+    "Hf": "hcp",   # Strengthens grain boundaries in SX alloys
+
+    # Common stainless steel elements
+    "Mn": "bcc",   # Affects work-hardening and toughness
+    "Si": "diamond",  # Improves oxidation resistance, aids deoxidation
+    "V": "bcc",    # Strengthens carbide phases
+    "Cu": "fcc",   # Sometimes added for corrosion resistance
+}
+
 
 def update_phase_field_dataset(PFM_data, old_system, system, dE, swap_pairs, species_counts, move_type):
 
@@ -16,24 +45,23 @@ def update_phase_field_dataset(PFM_data, old_system, system, dE, swap_pairs, spe
             parts = line.split(',')  # Split the line at the comma to separate the indices
             swap_pairs = [tuple(map(int, parts))]
 
-    if move_type == 'cluster_hop':
-        with open('cluster_hop_pairs') as file:
-            swap_pairs = []
-            for line in file:
-                line = line.strip()  # Strip any extra whitespace/newline characters
-                parts = line.split(',')  # Split the line at the comma to separate the indices
-                swap_pairs.append(tuple(map(int, parts)))
+    if move_type == 'flip':
+        with open('flip_pairs') as file:
+            line = file.readline().strip()  # Read the first line and strip any extra whitespace/newline characters
+            parts = line.split(',')  # Split the line at the comma to separate the indices
+            swap_pairs = [tuple(map(int, parts))]
 
-
+    
 
     for pair in swap_pairs:
 
         atom_index1, atom_index2 = pair[0], pair[1]
 
-        if system[atom_index2].symbol not in ['B', 'C', 'O', 'N', 'H']:
+        if system[atom_index2].symbol not in interstitials and system[atom_index1].symbol not in ignore:
             # Get initial and final positions for both atoms
             atom_type1 = system[atom_index1].symbol
-            species_counts[atom_type1] += 1
+            species_counts.setdefault(atom_type1, 0)
+            species_counts[atom_type1] = species_counts.get(atom_type1, 0) + 1
             r0_1 = old_system[atom_index1].position  # Position before the swap
             rf_1 = system[atom_index1].position  # Position after the swap, i.e., the position of the second atom
 
@@ -42,7 +70,8 @@ def update_phase_field_dataset(PFM_data, old_system, system, dE, swap_pairs, spe
             PFM_data = pd.concat([PFM_data, new_row1], ignore_index=True)
 
         atom_type2 = system[atom_index2].symbol
-        species_counts[atom_type2] += 1
+        species_counts.setdefault(atom_type2, 0)
+        species_counts[atom_type2] = species_counts.get(atom_type2, 0) + 1
         r0_2 = old_system[atom_index2].position  # Position before the swap
         rf_2 = system[atom_index2].position  # Position after the swap, i.e., the position of the first atom
 
@@ -68,6 +97,7 @@ def snapshots(mc_step, snapshot_every):
     if mc_step % snapshot_every == 0:
         os.system(f'cp data/MonteCarloStatistics data/epochs/mc_stats_{mc_step}')
         os.system(f'cp data/species_counter.json data/epochs/species_counter_{mc_step}.json')
+
 
 
 def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
@@ -110,7 +140,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     indices, offsets = neighbor_list.get_neighbors(host_index)
 
     # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in ['B', 'C', 'O', 'N', 'H']]
+    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore]
     for attempts in range(100):
         host_index = random.choice(metal_neighbors)
 
@@ -129,158 +159,6 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     return None
 
 from ase import neighborlist
-'''
-def perform_cluster_move(system, cutoff=2.5, max_displacement=0.5):
-    # Identify all B atoms
-    b_indices = [atom.index for atom in system if atom.symbol in ['B', 'C', 'O', 'N', 'H']]
-
-    # Select a random B atom
-    b_index = random.choice(b_indices)
-    b_position = system[b_index].position
-
-    # Find neighbors within the cutoff distance
-    neighbor_indices = []
-    nl = neighborlist.NeighborList([cutoff / 2.0] * len(system), self_interaction=False, bothways=True)
-    nl.update(system)
-
-    indices, offsets = nl.get_neighbors(b_index)
-
-    # Include the B atom itself in the cluster
-    cluster_indices = [b_index] + indices
-
-    # Apply a random displacement to the entire cluster
-    displacement = (np.random.random(3) - 0.5) * max_displacement
-    for index in cluster_indices:
-        system[index].position += displacement
-
-    return system
-'''
-from scipy.spatial.transform import Rotation as R
-def perform_cluster_move(system, cutoff=2.5, max_displacement=0.5):
-    # Identify all B atoms
-    b_indices = [atom.index for atom in system if atom.symbol in ['B', 'C', 'O', 'N', 'H']]
-
-    # Select a random B atom
-    b_index = random.choice(b_indices)
-
-    # Find neighbors within the cutoff distance
-    cutoff = natural_cutoffs(system)
-
-    nl = neighborlist.NeighborList(cutoff, self_interaction=False, bothways=True)
-    nl.update(system)
-
-    indices, offsets = nl.get_neighbors(b_index)
-
-    # Include the B atom itself in the cluster
-    cluster_indices = [b_index] + indices
-
-    # Randomly generate a rotation axis (normalized)
-    rotation_axis = np.random.normal(size=3)
-    rotation_axis /= np.linalg.norm(rotation_axis)
-
-    # Randomly select a rotation angle between 10 and 20 degrees
-    rotation_angle = np.radians(random.uniform(20, 30))
-
-    # Create rotation object
-    rotation = R.from_rotvec(rotation_angle * rotation_axis)
-
-    # Get the position of the center atom
-    center_position = system.positions[b_index]
-
-    # Apply rotation to each atom in the cluster
-    for idx in cluster_indices:
-        if idx != b_index:
-            relative_position = system.positions[idx] - center_position
-            rotated_position = rotation.apply(relative_position)
-            system.positions[idx] = rotated_position + center_position
-
-    return system
-
-def perform_uniform_cluster_hop(system, r_cutoff=2.25, hop_distance=2.0):
-    # Identify all B or C atoms
-    bc_indices = [atom.index for atom in system if atom.symbol in ['B', 'C', 'O', 'N', 'H']]
-
-    # Select a random B or C atom to move
-    b_index = random.choice(bc_indices)
-
-    # Find neighbors within the cutoff distance of the move atom (these will be metal atoms)
-    b_position = system[b_index].position
-    nl = neighborlist.NeighborList([r_cutoff / 2.0] * len(system), self_interaction=False, bothways=True)
-    nl.update(system)
-
-    indices, offsets = nl.get_neighbors(b_index)
-    metal_indices = [
-        index for index, offset in zip(indices, offsets)
-        if system[index].symbol not in ['B', 'C', 'O', 'N', 'H'] and np.linalg.norm(system[index].position + np.dot(offset, system.get_cell()) - b_position) <= r_cutoff
-    ]
-
-    nonmetal_indices = [
-        index for index, offset in zip(indices, offsets)
-        if system[index].symbol in ['B', 'C', 'O', 'N', 'H'] and np.linalg.norm(system[index].position + np.dot(offset, system.get_cell()) - b_position) <= r_cutoff
-    ]
-
-
-    # Determine a random cardinal direction for the hop
-    directions = np.array([[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]])
-    direction = random.choice(directions)
-
-    # Calculate the new positions for the metal atoms
-    new_positions = [system[i].position + hop_distance * direction for i in metal_indices]
-
-    # Identify the nearest metal atoms to these new positions and swap their positions with the original cluster atoms
-    nonmetal_companions = {}
-    swapped_pairs = []
-    displacements = []
-    for old_index, new_position in zip(metal_indices, new_positions):
-        distances = np.linalg.norm(system.get_positions() - new_position, axis=1)
-        sorted_indices = np.argsort(distances)
-
-        # Find the nearest metal atom to swap with
-        for nearest_index in sorted_indices:
-            if system[nearest_index].symbol not in ['B', 'C', 'O', 'N', 'H']:
-                break
-
-        # If a nonmetal companion is found, keep track of it
-        if system[nearest_index].symbol in ['B', 'C', 'O', 'N', 'H']:
-            nonmetal_companions[nearest_index] = old_index
-
-        # Swap positions if a suitable nearest metal atom is found
-        if system[nearest_index].symbol not in ['B', 'C', 'O', 'N', 'H']:
-            temp_position = system[old_index].position.copy()
-
-            displacements.append(system[nearest_index].position - system[old_index].position)
-
-            system[old_index].position = system[nearest_index].position
-            system[nearest_index].position = temp_position
-            swapped_pairs.append((old_index, nearest_index))
-
-
-    # Calculate the displacement for the B or C atom based on the movement of its nearest host(s)
-    displacement = np.mean(displacements)
-
-    # Move the nonmetal companions along with their metal hosts
-    for nonmetal_index, host_index in nonmetal_companions.items():
-        host_displacement = -displacement
-        system[nonmetal_index].position += host_displacement
-        swapped_pairs.append((0, nonmetal_index))
-
-    # Move the B or C neighbors to the new cluster location
-    for index in nonmetal_indices:
-        system[index].position += displacement
-        swapped_pairs.append((0, index))
-
-    # Move the B or C host to the new cluster location
-    system[b_index].position += displacement
-    swapped_pairs.append((0, b_index))
-
-    with open('cluster_hop_pairs', 'w') as file:
-        for old_index, nearest_index in swapped_pairs:
-            file.write(f"{old_index}, {nearest_index}\n")
-
-
-    return system
-
-
 
 def shuffle_neighbor_types(system, cutoff=2.25):
     """
@@ -296,7 +174,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     - system (ASE Atoms object): The modified atomic configuration after the shuffle.
     """
 
-    b_indices = [atom.index for atom in system if atom.symbol in ['B', 'C', 'O', 'N', 'H']]
+    b_indices = [atom.index for atom in system if atom.symbol in interstitials]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -313,7 +191,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     indices, offsets = neighbor_list.get_neighbors(b_index)
 
     # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if system[idx].symbol not in ['B', 'C', 'O', 'N', 'H']]
+    metal_neighbors = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
 
     # select a nearest metal neighbor
     neighbor_index = random.choice(metal_neighbors)
@@ -322,7 +200,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
 
 
     # Exclude the original B/C atom from the list of potential switch candidates
-    indices = [idx for idx in indices if system[idx].symbol not in ['B', 'C', 'O', 'N', 'H']]
+    indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
 
     # filter out neighbors of same type
     indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
@@ -348,7 +226,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
         indices, offsets = neighbor_list.get_neighbors(neighbor_index)
 
         # Exclude the original B/C atom from the list of potential switch candidates
-        neighbor_indices = [idx for idx in indices if system[idx].symbol not in ['B', 'C', 'O', 'N', 'H']]
+        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
 
         # filter out neighbors of same type
         neighbor_indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
@@ -367,11 +245,159 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     return system
 
 
+from collections import Counter
+
+def generate_chemical_potentials(choices, supcomp_command):
+    dir = "src/chemical_potentials/"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    
+    chemical_potentials = {}
+    for metal in choices:
+        filename = f"{dir}mu_{metal}.txt"
+        if not os.path.exists(filename):
+            try:
+                atoms = bulk(metal, crystalstructure=common_structures[metal], cubic=True).repeat((2,2,2))
+            except:
+                atoms = bulk(metal, crystalstructure=common_structures[metal], orthorhombic=True).repeat((2,2,2))
+            
+            _, mu = relax(atoms, 'flip', supcomp_command)
+            np.savetxt(filename, [mu/len(atoms)])
+
+        chemical_potentials[metal] = np.loadtxt(filename)
+    
+    
+    # Find the lowest-energy binary compounds
+    main_system = read("POSCAR")
+    
+    # Count occurrences of each metal in main_system
+    metal_counts = Counter(atom.symbol for atom in main_system if atom.symbol not in interstitials+ignore)
+    # Identify the majority metal (most frequent element)
+    majority_metal = max(metal_counts, key=metal_counts.get)
+
+    binary_potentials = {}
+    for metal2 in choices:
+        if metal2 == majority_metal:
+            continue  # Skip cases where metal2 is the majority metal
+
+        # Ensure sorting order for consistency
+        metal1, metal2 = sorted([majority_metal, metal2])
+        binary_filename = f"src/chemical_potentials/mu_{metal1}_{metal2}.txt"
+        poscar_path = f"src/chemical_potentials/poscars/{metal1}{metal2}_POSCAR"
+
+        # Check if the binary potential is already computed and saved
+        if os.path.exists(binary_filename):
+            binary_potentials[(metal1, metal2)] = np.loadtxt(binary_filename)
+            continue  # Skip recomputation
+
+        # If POSCAR file exists, read and relax it to get binary energy
+        if os.path.exists(poscar_path):
+            try:
+                atoms = read(poscar_path)  # Read the POSCAR file
+                _, mu = relax(atoms, 'flip', supcomp_command)  # Run relaxation function
+                E_binary = mu  # Extract binary energy
+            except Exception as e:
+                print(f"⚠ Error processing {poscar_path}: {e}")
+                continue  # Skip this pair if relaxation fails
+        else:
+            print(f"⚠ Missing POSCAR file: {poscar_path}. Skipping {metal1}-{metal2}")
+            continue  # Skip if the POSCAR file does not exist
+
+        # Get pure metal energies
+        E_A = chemical_potentials.get(metal1, 0.0)  # Default to 0 if missing
+        E_B = chemical_potentials.get(metal2, 0.0)  # Default to 0 if missing
+
+        # Get stoichiometry from the binary compound
+        num_A = sum(1 for atom in atoms if atom.symbol == metal1)
+        num_B = sum(1 for atom in atoms if atom.symbol == metal2)
+
+        if num_A == 0 or num_B == 0:
+            print(f"⚠ Invalid stoichiometry detected for {metal1}-{metal2}. Skipping.")
+            continue  # Skip if no valid stoichiometry
+
+        # Compute chemical potentials
+        mu_A = (E_binary - (num_B * E_B)) / num_A
+        mu_B = (E_binary - (num_A * E_A)) / num_B
+
+        # Save only the non-majority metal's chemical potential
+        non_majority_mu = mu_B if metal2 != majority_metal else mu_A
+        np.savetxt(binary_filename, [non_majority_mu])  # Save computed value
+
+        # Store in dictionary
+        binary_potentials[(metal1, metal2)] = non_majority_mu
+
+    binary_potentials[(majority_metal, majority_metal)] = chemical_potentials[majority_metal]
+    return majority_metal, chemical_potentials, binary_potentials
+
+def flip_atoms(system, metal_choices, supcomp_command):
+    choices = ["Cr", "Fe", "Mo", "Nb", "Ni", "Ti"]
+    if metal_choices:
+        choices = metal_choices
+
+    # Generate chemical potentials and identify the majority metal
+    majority_metal, chemical_potentials, binary_potentials = generate_chemical_potentials(choices, supcomp_command)
+
+    # Grab all metal indices (ignoring B, C, H, N, O)
+    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore]
+    if not indices:
+        raise ValueError("No valid metal atoms found in the system.")
+
+    # Grab a random metal index
+    random_index = random.choice(indices)
+    original_symbol = system[random_index].symbol
+
+    # Don't choose yourself
+    true_choices = [x for x in choices if x != original_symbol]
+    if not true_choices:
+        raise ValueError(f"No valid swap choices available for {original_symbol}.")
+
+    flip_symbol = random.choice(true_choices)
+
+    # Ensure sorted keys for binary lookup
+    ref1, ref2 = sorted([majority_metal, original_symbol])
+    ref3, ref4 = sorted([majority_metal, flip_symbol])
+
+    # Retrieve chemical potentials with fallbacks
+    mu_A = binary_potentials[(ref1, ref2)]
+    mu_B = binary_potentials[(ref3, ref4)]
+
+    # If swapping to/from majority metal, enforce pure values
+    if flip_symbol == majority_metal:
+        mu_B = chemical_potentials[majority_metal]
+    if original_symbol == majority_metal:
+        mu_A = chemical_potentials[majority_metal]
+
+    # Assign correctly: mu_i corresponds to the original atom, mu_j to the new atom
+    mu_i = mu_A if original_symbol == ref2 else mu_B
+    mu_j = mu_B if flip_symbol == ref4 else mu_A
+
+    # Flip the atom type in the system
+    system[random_index].symbol = flip_symbol
+
+    # Compute chemical potential difference
+    delta_mu = float(mu_j - mu_i)  # Ensure delta_mu is always a float
+
+    # Log the swap in a file
+    with open('flip_pairs', 'w') as file:
+        file.write(f"{random_index}, {original_symbol} -> {flip_symbol}\n")
+
+    return system, delta_mu
+
+
+
+def add_new_species(atoms, counter):
+
+    unique_species = set([atom.symbol for atom in atoms])
+    for species in unique_species:
+        counter.setdefault(species, 0)
+    
+    return(counter)
 
 # Relax the pre and post swapped cells
-def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, supcomp_command):
+def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, supcomp_command, metal_choices=None):
 
     system_copy = copy.deepcopy(system)
+    delta_mu = 0.0 # for when we are not flipping
 
     if move_type == 'swap':
 
@@ -401,44 +427,37 @@ def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, su
 
             system_copy[apair[1]].position = p2
 
-    elif move_type == 'cluster':
-
-
-        system_copy = perform_cluster_move(system_copy)
-
     elif move_type == 'shuffle':
-
-
         system_copy = shuffle_neighbor_types(system_copy)
-
-    elif move_type == 'cluster_hop':
-
-        system_copy = perform_uniform_cluster_hop(system_copy)
 
     elif move_type == 'MD':
         system_copy, new_energy = run_md_simulation(system_copy)
+    
+    elif move_type == 'flip':
+         system_copy, delta_mu = flip_atoms(system_copy, metal_choices, supcomp_command)
 
     original_energy = energy[-1]
-
     if not run_MD:
         system_copy, new_energy = relax(system_copy, move_type, supcomp_command)
 
-    delta_E = new_energy - original_energy
+    delta_E = (new_energy - original_energy) + delta_mu
 
     return delta_E, new_energy
 
 # logic for relaxing the swapped cells
 def relax(system, move_type, supcomp_command):
 
-    write("POSCAR", system, format="vasp", direct=True, sort=True)
-
+    write("POSCAR", system, format="vasp", direct=True, sort=False)
+    
+    # account for new species types
+    fun.update_modfiles()
     # create the POSCAR.data file
     fun.poscar_to_lammps()
 
     # execute atomic minimization without letting
     # the simcell relax from NPT sims
 
-    if move_type == 'new_host':
+    if move_type in ['new_host', 'flip']:
         os.system(f"{supcomp_command} -in relax.in")
     else:
         os.system(f"{supcomp_command} -in static_relax.in")
@@ -496,31 +515,29 @@ def run_md_simulation(system, supcomp_command):
 
 from ase import Atoms
 from math import floor
-def place_additives_nearby(in625_supercell, additives, O2, size):
-    parent = additives[0]
-    minority = additives[1]
-    num_tib2_units = additives[2]
+def place_additives_nearby(in625_supercell, additives):
+    for additive in additives:
+        parent = additive[0]
+        minority = additive[1]
+        num_tib2_units = additive[2]
 
-    Natoms = len(in625_supercell)
+        Natoms = len(in625_supercell)
+        # Randomly select positions in the supercell to replace with TiB2
+        positions = np.random.choice(range(Natoms), num_tib2_units, replace=False)
 
-    nO2 = max(1,int(floor(0.5*num_tib2_units)))
-
-    # Randomly select positions in the supercell to replace with TiB2
-    positions = np.random.choice(range(Natoms), num_tib2_units+nO2, replace=False)
-
-    # place our ceramics
-    for pos in positions[:num_tib2_units]:
-        #in625_supercell[pos].symbol = parent
-        # Add B atoms close to Ti in a realistic manner
-        in625_supercell += Atoms(minority, positions=[in625_supercell[pos].position + [1.25, 0, 0]])
-
-    if O2:
-        # place the O2 if we are considering O2
-        for pos in positions[num_tib2_units:]:
-            in625_supercell[pos].symbol = parent
-            # Add B atoms close to Ti in a realistic manner
-            in625_supercell += Atoms('O', positions=[in625_supercell[pos].position + [0, 1.25, 0]])
-
+        # place our ceramics
+        for pos in positions[:num_tib2_units]:
+            # transmute our partner into the metallic host
+            if parent.lower() != 'none':
+                in625_supercell[pos].symbol = parent
+            # Add B atoms close to Ti in a realistic manner (account for possible digit, i.e., B2)
+            try:
+                in625_supercell += Atoms(minority, positions=[in625_supercell[pos].position + np.array([1.25, 0, 0])])
+            except Exception as e:
+                placement = [np.array([1.25, 0, 0]), np.array([0, 1.25, 0])]
+                for array in placement:
+                    in625_supercell += Atoms(minority[0], positions=[
+                    in625_supercell[pos].position + array])
 
 
 class AtomsWithVacancies(Atoms):
@@ -532,7 +549,7 @@ class AtomsWithVacancies(Atoms):
     def introduce_vacancies(self):
         # Count the number of 'B' and 'C' atoms
         symbols = self.get_chemical_symbols()
-        b_c_count = sum(1 for s in symbols if s in ['B', 'C', 'N', 'H'])
+        b_c_count = sum(1 for s in symbols if s in interstitials)
 
         if b_c_count > 0:
             # Calculate the number of vacancies to introduce
@@ -573,10 +590,8 @@ class AtomsWithVacancies(Atoms):
     def get_vacancies(self):
         return self.vacancies
 
-
-
 # Initialization
-def initialize_system(composition, grain_boundary, supcomp_command, md_params, additives, O2, crystal_shape, size, vacancies):
+def initialize_system(composition, grain_boundary, supcomp_command, md_params, additives, crystal_shape, size, vacancies, randomize):
 
     # set parent to most prominent species
     parent = max(composition, key=lambda x: max(composition))
@@ -624,9 +639,37 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
     else:
         # load in the pre-existing grain boundary structure
         atoms = read("POSCAR-gb", format="vasp")
+        if randomize:
+            # Calculate the total number of atoms
+            total_atoms = len(atoms)
+
+            # Extract symbols and percentages from the library
+            symbols = list(dict(composition).keys())
+            percentages = [x for x in composition.values()]
+
+            # Calculate the exact number of each type of atom
+            num_atoms = {symbol: int(round(total_atoms * percentage)) for symbol, percentage in zip(symbols, percentages)}
+
+            # Adjust for rounding errors by adding/removing atoms from the most frequent species
+            actual_total = sum(num_atoms.values())
+            difference = total_atoms - actual_total
+            most_frequent_symbol = symbols[np.argmax(percentages)]
+            num_atoms[most_frequent_symbol] += difference
+
+
+            # Create the list of atomic symbols based on the exact numbers
+            atomic_symbols = []
+            for symbol, count in num_atoms.items():
+                atomic_symbols.extend([symbol] * count)
+
+            # Shuffle the list to randomize the positions
+            np.random.shuffle(atomic_symbols)
+
+            # Update the symbols of the existing atoms object with atomic symbols
+            atoms.set_chemical_symbols(atomic_symbols)
 
     if additives:
-        place_additives_nearby(atoms, additives, O2, size)
+        place_additives_nearby(atoms, additives)
 
     if vacancies:
         atoms = AtomsWithVacancies(symbols=atoms.get_chemical_symbols(), positions=atoms.get_positions(), cell=atoms.get_cell())
@@ -635,6 +678,7 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
 
     # this way, the modfiles can be updated properly
     write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
+    write("POSCAR", atoms, format='vasp', direct=True, sort=True)
     # update modfiles for the relaxations and md runs
     fun.update_modfiles(md_params)
 
@@ -679,7 +723,7 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25):
     # Collect the types of these neighbors that are metal types, omitting 'B', 'C', 'O', 'N', and the nearest neighbor
     metal_neighbors = [
         idx for idx in indices
-        if system[idx].symbol not in ['B', 'C', 'O', 'N', 'H'] and idx != nearest_neighbor_index
+        if system[idx].symbol not in interstitials+ignore and idx != nearest_neighbor_index
     ]
 
     return metal_neighbors
@@ -689,8 +733,8 @@ def select_random_atoms(system, move_type):
 
     # filter out B and C atoms as we will find new 'hosts' for them rather than attempt
     # swaps and translational moves
-    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in ['B', 'C', 'O', 'N', 'H']]
-    bc_indices = [i for i, atom in enumerate(system) if atom.symbol in ['B', 'C', 'O', 'N', 'H']]
+    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore]
+    bc_indices = [i for i, atom in enumerate(system) if atom.symbol in interstitials]
 
     # cannot be an odd int because these are pairs of atoms
     selection = {     'swap': 2,
@@ -755,7 +799,7 @@ def select_random_atoms(system, move_type):
             # first we try diffusing in local area
             # if no sites are available, explore the whole cell
             if attempts > 20:
-                non_bc_indices = [i for i, atom in enumerate(system) if atom.symbol not in ['B', 'C', 'O', 'N', 'H']]
+                non_bc_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore]
 
                 # too crowded to place nearby, so flip choice back to 0
                 choice = 0
@@ -786,7 +830,7 @@ def select_random_atoms(system, move_type):
 
                 for interstitial in bc_indices:
                     neighbors = get_nearest_neighbors(system, interstitial, True)
-                    neighbor_interstitials = [n for n in neighbors if system[n].symbol in ['B', 'C', 'O', 'N', 'H']]
+                    neighbor_interstitials = [n for n in neighbors if system[n].symbol in interstitials]
 
                     if neighbor_interstitials:  # A cluster exists
                         cluster_detected = True
@@ -842,15 +886,14 @@ def parse_mc_statistics(file_path='data/MonteCarloStatistics'):
                 key = key.strip()
                 value = value.strip()
                 # Convert value to appropriate type
-                if key in ['Steps Completed', 'Accepted Swaps', 'New Hosts Accepted', 'Translates Accepted', 'Cluster Hops Accepted', 'Cluster Shuffles Accepted', 'MD Simulations Accepted', 'Steps for MD']:
+                if key in ['Steps Completed', 'Accepted Swaps', 'New Hosts Accepted', 'Flips Accepted', 'Cluster Shuffles Accepted', 'MD Simulations Accepted', 'Steps for MD']:
                     stats[key] = int(value)
                 elif key in ['Acceptance %', 'Rejection %']:
                     stats[key] = float(value)
 
     move_counts = {'swap': stats['Accepted Swaps'],
                    'new_host': stats['New Hosts Accepted'],
-                   'translate': stats['Translates Accepted'],
-                   'cluster_hop': stats['Cluster Hops Accepted'],
+                   'flip': stats['Flips Accepted'],
                    'shuffle': stats['Cluster Shuffles Accepted'],
                    'MD': stats['MD Simulations Accepted']}
 

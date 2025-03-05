@@ -21,7 +21,11 @@ fix avePE all ave/time 1 20 20 c_PE ave one
 
 timestep 0.001
 
-run 0
+#run 0
+
+# Perform relaxation
+min_style cg
+minimize 1e-10 1e-10 15000 15000
  
 variable etotal equal pe
 print "${etotal}" file energy.txt

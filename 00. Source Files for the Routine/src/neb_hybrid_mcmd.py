@@ -24,19 +24,21 @@ def hybrid_md_mc_routine(config):
             - md_params: tuple, MD simulation parameters (e.g., (0, 1073, 'eam'))
             - num_mc_steps: int, number of Monte Carlo steps
             - md_interval: int, MC steps between MD steps
+            - neb_interval: int, MC steps between NEB calculations
             - size: int or tuple, dimensions of the simulation box (e.g., 6 for cubic or (10, 10, 10))
             - supcomp_command: str, supercomputer command to run simulations
             - continue_run: bool, whether to continue from a previous run
             - additives: tuple, dopant type and count (e.g., ('B', 10))
+            - O2: bool, whether to include oxygen at half the dopant concentration
             - vacancies: bool, whether to include vacancies
 
     Returns:
         None
     """
     # Validate input
-    required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
-                     'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
-                     'continue_run', 'additives', 'vacancies', 'metal_library']
+    required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'md_params',
+                     'num_mc_steps', 'md_interval', 'neb_interval', 'size', 'supcomp_command',
+                     'continue_run', 'additives', 'O2', 'vacancies']
 
     for key in required_keys:
         if key not in config:
@@ -49,7 +51,7 @@ def hybrid_md_mc_routine(config):
     _, temperature, potential_type = config['md_params']
     lfun.update_md_input_file(config['md_params'])
 
-    if potential_type == "chgnet":
+    if config['md_params'][2] == "chgnet":
         lfun.update_chgnet_input_file(config['md_params'])
     else:
         lfun.update_md_input_file(config['md_params'])
@@ -65,10 +67,10 @@ def hybrid_md_mc_routine(config):
             config['supcomp_command'],
             config['md_params'],
             config['additives'],
+            config['O2'],
             config['crystal_shape'],
             config['size'],
-            config['vacancies'],
-            config['randomize']
+            config['vacancies']
         )
 
         # Initial energy setup
@@ -80,21 +82,12 @@ def hybrid_md_mc_routine(config):
         columns = ['Atom Type', 'r_0', 'r_f', 'Times Moved']
         PFM_data = pd.DataFrame(columns=columns)
 
-        # initialize our files to avoid errors in restarting
-        species_counter = fun.initialize_mc_step_counter(system)
-        with open('data/species_counter.json', 'w') as file:
-            json.dump(species_counter, file)
-        PFM_data.to_csv('data/phase_field_model_data.csv', index=False)
-
-        accepted = 0; rejected = 0
-        steps_completed = 0
-        save = 0
-        move_counts = {'swap': 0, 'new_host': 0, 'flip': 0, 'shuffle': 0, 'MD': 0}
-
     else:
         system = read('POSCAR-1', format='vasp')
         PFM_data = pd.read_csv('data/phase_field_model_data.csv', index_col=None)
+        lfun.update_modfiles(config['md_params'])
 
+    if config['continue_run']:
         energies = list(np.loadtxt('data/energies'))
 
         # Parse MC statistics if in continue run mode
@@ -103,22 +96,15 @@ def hybrid_md_mc_routine(config):
         with open('data/species_counter.json', 'r') as f:
             species_counter = json.load(f)
 
-
-    write("POSCAR", system, format='vasp', direct=True, sort=False)
-    lfun.update_modfiles(config['md_params'])
-
     # Main simulation logic
     move_list = ['swap']
-    metal_choices = config['metal_library']
     if config['additives']:
         move_list = ['swap', 'new_host', 'new_host', 'shuffle']
-        if metal_choices and metal_choices != 'none':  # Handle both None and string "none"
-            metal_choices = config['metal_library']
-            move_list = ['swap', 'new_host', 'new_host', 'shuffle', 'flip']
 
     snapshot_every = 100
     num_mc_steps = config['num_mc_steps']
     md_interval = config['md_interval']
+    neb_interval = 20 #config['neb_interval']
 
     for mc_step in range(steps_completed + 1, num_mc_steps + 1):
 
@@ -126,10 +112,12 @@ def hybrid_md_mc_routine(config):
         move_type = random.choice(move_list)
 
         # Select atoms for the move
-        if move_type not in ['shuffle', 'flip']:
+        if move_type not in ['cluster', 'shuffle', 'cluster_hop']:
             swap_pairs = fun.select_random_atoms(system, move_type)
         else:
             swap_pairs = (0, 0)  # Placeholder for unsupported moves
+
+        old_system = copy.deepcopy(system)
 
         if save >= md_interval:
             print(f'Running HT MC sampling routine at step {mc_step}!')
@@ -139,14 +127,13 @@ def hybrid_md_mc_routine(config):
             )
 
             # Automatically accept the new state
-            old_system = copy.deepcopy(system)
             system = read('CONTCAR', format='vasp')
 
             PFM_data, species_counter = fun.update_phase_field_dataset(
                 PFM_data, old_system, system, delta_E, swap_pairs, species_counter, move_type
             )
 
-            write("POSCAR-1", system, format='vasp', direct=True, sort=False)
+            write("POSCAR-1", system, format='vasp', direct=True, sort=True)
             move_counts[move_type] += 1
 
             if save >= md_interval:
@@ -161,17 +148,15 @@ def hybrid_md_mc_routine(config):
 
         else:
             delta_E, new_energy = fun.calculate_energy_change(
-                system, energies, swap_pairs, move_type, False, config['supcomp_command'], metal_choices
+                system, energies, swap_pairs, move_type, False, config['supcomp_command']
             )
 
             if random.random() < np.exp(-delta_E / (k_B * temperature)):
-                old_system = copy.deepcopy(system)
                 system = read('CONTCAR', format='vasp')
 
-                if move_type != 'flip':
-                    PFM_data, species_counter = fun.update_phase_field_dataset(
-                        PFM_data, old_system, system, delta_E, swap_pairs, species_counter, move_type
-                    )
+                PFM_data, species_counter = fun.update_phase_field_dataset(
+                    PFM_data, old_system, system, delta_E, swap_pairs, species_counter, move_type
+                )
 
                 write("POSCAR-1", system, format='vasp', direct=True, sort=True)
                 move_counts[move_type] += 1
@@ -183,8 +168,6 @@ def hybrid_md_mc_routine(config):
                 accepted += 1
                 save += 1
 
-                species_counter = fun.add_new_species(system, species_counter)
-
                 with open('data/species_counter.json', 'w') as file:
                     json.dump(species_counter, file)
 
@@ -192,22 +175,26 @@ def hybrid_md_mc_routine(config):
                 energies.append(energies[-1])
                 rejected += 1
 
+        # Write the initial and final states for NEB
+        write("POSCAR_initial", old_system, format="vasp", direct=True, sort=True)
+        final_system = read("CONTCAR", format="vasp")
+        write("POSCAR_final", final_system, format="vasp", direct=True, sort=True)
+
+        # Run NEB calculations at the specified interval of overall moves
+        if mc_step % neb_interval == 0:
+            print(f'Running NEB calculations at step {mc_step}!')
+            fun.run_neb_calculations(config['supcomp_command'])
+
         with open('data/MonteCarloStatistics', 'w') as file:
             file.write(f'Steps Completed: {mc_step}\n')
             file.write(f'Acceptance %: {accepted/mc_step * 100}\n')
             file.write(f'Rejection %: {rejected/mc_step * 100}\n')
             file.write(f"\nAccepted Swaps: {move_counts['swap']}\n")
             file.write(f"New Hosts Accepted: {move_counts['new_host']}\n")
-            file.write(f"Flips Accepted: {move_counts['flip']}\n")
+            file.write(f"Translates Accepted: {move_counts['translate']}\n")
+            file.write(f"Cluster Hops Accepted: {move_counts['cluster_hop']}\n")
             file.write(f"Cluster Shuffles Accepted: {move_counts['shuffle']}\n")
             file.write(f"MD Simulations Accepted: {move_counts['MD']}\n")
-            file.write(f'Steps for MD: {save}')
-
-        file.close()
-
-        fun.snapshots(mc_step, snapshot_every)
-
-        np.savetxt("data/energies", energies)
 
     print("Simulation complete.")
 
@@ -222,63 +209,9 @@ def read_config_file():
     config = {}
     with open('input_file', 'r') as f:
         for line in f:
-            if line.strip() and not line.startswith('#'):
-                key, value = line.split(':', 1)
-                key = key.strip()
-                value = value.strip()
-
-                if key == 'composition':
-                    config[key] = {item.split('=')[0]: float(item.split('=')[1]) for item in value.split(', ')}
-                elif key == 'md_params':
-                    config[key] = tuple(map(lambda x: int(x) if x.isdigit() else x, value.split(', ')))
-                elif key in {'num_mc_steps', 'md_interval', 'size'}:
-                    config[key] = int(value)
-                elif key in {'grain_boundary', 'continue_run', 'vacancies', 'randomize'}:
-                    config[key] = value.lower() == 'true'
-                elif key == 'additives':
-                    if value.strip().lower() == "none":
-                        config[key] = None
-                    
-                    else:
-                        # Remove outer brackets and strip spaces
-                        cleaned_value = value.strip().strip("[]")
-
-                        # Split into individual tuples based on "), ("
-                        tuple_strings = cleaned_value.split("), (")
-
-                        additives_list = []
-                        for tuple_str in tuple_strings:
-                            # Remove any stray parentheses and split by commas
-                            elements = tuple_str.replace("(", "").replace(")", "").split(",")
-                            
-                            # Ensure we have exactly 3 elements
-                            if len(elements) != 3:
-                                raise ValueError(f"Unexpected format for additives: {value}")
-                            
-                            # Convert the third element to an integer
-                            additive_tuple = (elements[0].strip(), elements[1].strip(), int(elements[2].strip()))
-                            
-                            # Append to list
-                            additives_list.append(additive_tuple)
-
-                        # Store as list of tuples
-                        config[key] = additives_list
-
-                elif key == 'metal_library':
-                    # If the value is explicitly "None", store it as None and move on
-                    if value.strip().lower() == "none":
-                        config[key] = None
-                    else:
-                        # Remove square brackets and strip whitespace
-                        cleaned_value = value.replace("[", "").replace("]", "").strip()
-                        
-                        # Split by commas, strip spaces, remove extra quotes, and filter out empty entries
-                        config[key] = [v.strip().strip("'").strip('"') for v in cleaned_value.split(',') if v.strip()]
-
-                else:
-                    config[key] = value
+            key, value = line.strip().split('=')
+            config[key.strip()] = eval(value.strip())
     return config
-
 
 # To run the routine
 example_config = read_config_file()

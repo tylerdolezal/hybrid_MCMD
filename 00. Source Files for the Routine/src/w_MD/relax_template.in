@@ -16,7 +16,7 @@ fix holdBox all deform 1 x final 0.0 0.0 y final 0.0 0.0 z final 0.0 0.0 units b
 
 # Perform relaxation
 min_style cg
-minimize 1e-8 1e-8 7500 15000
+minimize 1e-10 1e-10 15000 15000
 
 variable etotal equal pe
 print "${etotal}" file energy.txt

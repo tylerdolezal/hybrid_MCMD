@@ -10,19 +10,22 @@ Created on Thu Jun 20 15:36:52 2024
 from ase.io import read, write
 import periodictable
 
-def update_modfiles(md_params):
-    potential_style = md_params[2]
+def update_modfiles(md_params=None):
+
     # alphabetical list of the chemical symbols
-    names = sorted(list(set(read("POSCAR-0", format='vasp').get_chemical_symbols())))
+    names = sorted(list(set(read("POSCAR", format='vasp').get_chemical_symbols())))
 
     with open("src/potential.mod", "r") as f:
         lines = f.readlines()
+    
+    lines[5] = "pair_coeff * * species "+" ".join(names)+"\n"
+    if md_params:
+        potential_style = md_params[2]
+        if potential_style == 'eam':
+            lines[5] = "pair_coeff * * "+"".join(names)+".eam "+" ".join(names)+"\n"
 
-    if potential_style == 'eam':
-        lines[5] = "pair_coeff * * "+"".join(names)+".eam "+" ".join(names)+"\n"
-
-    else:
-        lines[5] = "pair_coeff * * species "+" ".join(names)+"\n"
+        else:
+            lines[5] = "pair_coeff * * species "+" ".join(names)+"\n"
 
     with open("src/potential.mod", 'w') as f:
         f.writelines(lines)
@@ -49,7 +52,7 @@ def poscar_to_lammps():
 
     # Step 1: Read atomic structure using ASE
     atoms = read(afile, format='vasp')
-    names = sorted(list(set(read("POSCAR-0", format='vasp').get_chemical_symbols())))
+    names = sorted(list(set(read("POSCAR", format='vasp').get_chemical_symbols())))
 
     # Write the LAMMPS data file
     with open('POSCAR.data', 'w') as f:
@@ -145,7 +148,7 @@ def cleanup_contcar():
 
 def lammps_to_poscar():
 
-    names = sorted(list(set(read("POSCAR-0", format='vasp').get_chemical_symbols())))
+    names = sorted(list(set(read("POSCAR", format='vasp').get_chemical_symbols())))
 
     cleanup_contcar()
 
@@ -157,8 +160,7 @@ def lammps_to_poscar():
         atom.symbol = names[atom.number - 1]  # atom.number is 1-based
     """
     afile = "CONTCAR"
-    write(afile, atoms, format='vasp', direct=True, sort=False) # do not sort!
-    # to keep all atoms as they should be, do not sort!
+    write(afile, atoms, format='vasp', direct=True, sort=True)
 
 def update_md_input_file(params):
     # params = (md_steps, md_temperature)

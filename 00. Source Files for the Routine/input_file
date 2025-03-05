@@ -1,12 +1,13 @@
 composition: Ni=0.7, Cr=0.3
 crystal_shape: fcc
 grain_boundary: False
+randomize: False
 md_params: 0, 1073, chgnet
 num_mc_steps: 6000
 md_interval: 6001
 size: 6
 supcomp_command: mpirun -np 8 lmp_mpi
 continue_run: False
-additives: Cr, B, 9
-O2: False
+additives: [(Cr, B, 9)]
 vacancies: False
+metal_library: ["Cr", "Fe", "Mo", "Nb", "Ni", "Ti"]
