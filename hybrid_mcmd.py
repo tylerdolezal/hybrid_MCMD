@@ -7,7 +7,7 @@ import copy
 import json
 import src.myfuncs as fun
 import src.lammps_functions as lfun
-import src.ht_sampling_routine as ht
+import src.hybrid_md_routine as ht
 
 # Constants
 k_B = 8.617333262145e-5  # Boltzmann constant in eV/K
@@ -148,7 +148,7 @@ def hybrid_md_mc_routine(config):
         if save >= md_interval:
             print(f'Running HT MC sampling routine at step {mc_step}!')
             move_type = 'MD'
-            delta_E, new_energy, swap_pairs = ht.high_temperature_sampling(
+            delta_E, new_energy, swap_pairs = ht.hybrid_md_sampling(
                 system, energies[-1], config['md_params'], config['additives']
             )
 
