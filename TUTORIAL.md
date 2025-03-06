@@ -116,7 +116,13 @@ If the provided simulation cell does not contain a vacuum in the z direction, a 
   - The height of the adsorbate sheet is determined using the van der Waals radius of the adsorbate and the metal elements present in the surface model.
   - The spacing between adsorbates in the sheet is determined using the van der Waals radius of the adsorbates.
 
-### Batch Mode 
+### Batch Mode
+The `batch_mode` setting allows users to iterate through compositions or to perform multiple simulations at a given composition:
+
+```plaintext
+- batch_mode: [0.01, 0.02, 0.04, 0.05]: iterates from 1 at% up to 5 at% of the given additive(s).
+- batch_mode: [0.01, 0.01, 0.01]: performs three simulations at 1 at% and records the data for statistical analysis.
+- batch_mode: None: performs a single simulation with the given settings.
 
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
