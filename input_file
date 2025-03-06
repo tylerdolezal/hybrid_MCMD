@@ -12,3 +12,4 @@ additives: None #[(Cr, B, 9)]
 vacancies: False
 metal_library: None #["Cr", "Fe", "Mo", "Nb", "Ni", "Ti"]
 surface: None #["O", "hexagonal", 7.0]
+batch_mode: None #[0.01, 0.02, 0.03]
