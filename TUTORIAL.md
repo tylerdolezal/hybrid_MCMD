@@ -123,7 +123,7 @@ The `batch_mode` setting allows users to iterate through compositions or to perf
 - batch_mode: [0.01, 0.01, 0.01]: performs three simulations at 1 at% and records the data for statistical analysis.
 - batch_mode: None: performs a single simulation with the given settings.
 
-When batch_mode is activated the data and structures are saved to the directory `Alloy_X{at%}_run{iteration}`. So a repeated batch at 1 at% of B would look like, `Alloy_B1_run1`, `Alloy_B1_run2`, etc.
+When batch_mode is activated the data and structures are saved to the directory `Alloy_X{at%}_run{iteration}`. So a repeated batch at 1 at% of B would look like, `Alloy_B1_run1`, `Alloy_B1_run2`, etc. For undoped simulations, provide a list of values such that `len() = number of iterations to perform` and the data will be saved as `Alloy_run1`, ..., `Alloy_runN`.
 
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
