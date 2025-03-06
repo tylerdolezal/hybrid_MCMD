@@ -90,14 +90,27 @@ if batch_fractions:
         os.system("python3 hybrid_mcmd.py")
 
         # Organize results
-        dir_name = f"Alloy+{'_'.join([dopant for _, dopant, _ in updated_additives])}_{int(fraction * 100)}"
+        # Base directory name
+        base_dir_name = "Alloy"+f"{'_'.join([dopant for _, dopant, _ in updated_additives])}_{int(fraction * 100)}"
+
+        # Check if the directory already exists, and add a counter if necessary
+        dir_name = base_dir_name
+        counter = 1
+        while os.path.exists(dir_name):
+            dir_name = f"{base_dir_name}_{counter}"
+            counter += 1
+
+        # Create the final unique directory
         os.makedirs(dir_name, exist_ok=True)
+
+        # Copy result files
         for item in ["POSCAR-1", "data", "structures"]:
             if os.path.exists(item):
+                dest_path = os.path.join(dir_name, item)
                 if os.path.isdir(item):
-                    shutil.copytree(item, os.path.join(dir_name, item))
+                    shutil.copytree(item, dest_path)
                 else:
-                    shutil.copy(item, os.path.join(dir_name, item))
+                    shutil.copy(item, dest_path)
 
         print(f"Simulation for {', '.join([dopant for _, dopant, _ in updated_additives])} fraction {fraction*100}% completed.")
 
