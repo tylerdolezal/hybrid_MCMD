@@ -40,5 +40,5 @@ Ensure the following are installed:
 - **Python 3**
 ---
 This repository is actively maintained and updated to improve efficiency and accuracy in hybrid MCMD simulations. Contributions and suggestions are welcome! To help improve the code, please consider running the routine with:  
-```python3 execute.py 2> error.log```
+`python3 execute.py 2> error.log`
 This will capture errors separately, making it easier to track and resolve any issues.
