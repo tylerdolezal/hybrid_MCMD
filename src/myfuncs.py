@@ -1,10 +1,7 @@
 from ase.neighborlist import natural_cutoffs
-from itertools import combinations
 import src.lammps_functions as fun
-import matplotlib.pyplot as plt
 from ase.io import read, write
 from ase.build import bulk
-
 import pandas as pd
 import numpy as np
 import random

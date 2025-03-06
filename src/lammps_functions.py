@@ -21,8 +21,8 @@ def update_modfiles(md_params=None):
     lines[5] = "pair_coeff * * species "+" ".join(names)+"\n"
     if md_params:
         potential_style = md_params[2]
-        if potential_style == 'eam':
-            lines[5] = "pair_coeff * * "+"".join(names)+".eam "+" ".join(names)+"\n"
+        if potential_style in ['eam', 'meam']:
+            lines[5] = f"pair_coeff * * {''.join(names)}.{potential_style} {' '.join(names)}\n"
 
         else:
             lines[5] = "pair_coeff * * species "+" ".join(names)+"\n"
