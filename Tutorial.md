@@ -108,6 +108,7 @@ surface: None #["O", "hexagonal", 7.0]
 ```
 Defines surface conditions. Set to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
 - `"O", "hexagonal", 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer (e.g., atoms at and below 7 Å will be frozen).
+- The logic accepts either `"hexagonal"` or `"square"`.
 
 **Important Notes:**
 If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
