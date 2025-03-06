@@ -51,6 +51,10 @@ def set_global_threshold(surface):
     print(f"Global freeze_threshold set to: {freeze_threshold}")
     return freeze_threshold
 
+def set_interstitials(additives):
+    global interstitials
+    interstitials = list(set(interstitials) | set(additives))  # Merge and remove duplicates
+
 from ase.neighborlist import NeighborList
 class MaskedNeighborList(NeighborList):
     def __init__(self, cutoff, system, **kwargs):
