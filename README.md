@@ -1,4 +1,4 @@
-# Hybrid Monte Carlo Molecular Dynamics (MCMD) Routine
+# Hybrid Monte Carlo Molecular Dynamics (hMCMD) Routine
 
 ## Overview
 The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dynamics (MD) simulations in a hybrid fashion to explore material behaviors under various doping conditions. The routine allows for automated execution, statistical data collection, and efficient handling of simulation parameters. As a reminder the catalogue of MC moves are:
