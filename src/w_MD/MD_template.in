@@ -1,0 +1,46 @@
+# Initialize LAMMPS
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# Read data from POSCAR file
+include src/structure.mod
+include src/potential.mod
+
+
+thermo 100
+thermo_style custom step temp pe ke etotal press vol
+
+velocity all create TEMP_INIT 4928459 rot yes dist gaussian
+
+# Define a region for frozen atoms
+variable freeze_threshold equal FREEZE_THRESHOLD
+region freeze_region block INF INF INF INF 0.0 ${freeze_threshold}
+
+# Assign frozen atoms to the group
+group frozen_atoms region freeze_region
+
+# Apply freezing constraints only if freeze_threshold > 0
+if "${freeze_threshold} > 0.0" then &
+  "fix freeze frozen_atoms setforce 0.0 0.0 0.0" &
+  "velocity frozen_atoms set 0.0 0.0 0.0"
+
+# Define the thermostat and barostat settings (Nose-Hoover thermostat and barostat)
+variable dt equal 0.001  # Timestep in picoseconds
+compute PE all pe
+# Nose-Hoover NPT ensemble for temperature and pressure control
+fix 1 all nvt temp TEMP_INIT TEMP_FINAL $(100.0*dt)
+
+fix avePE all ave/time 1 200 200 c_PE ave one
+
+timestep 0.001
+
+run $(2*STEPS)
+
+
+variable etotal equal pe
+print "${etotal}" file energy.txt
+
+write_data CONTCAR.data nocoeff
+

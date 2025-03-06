@@ -1,0 +1,31 @@
+# Initialize LAMMPS
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# Read data from POSCAR file
+include src/structure.mod
+include src/potential.mod
+
+thermo_style custom step temp pe etotal vol
+thermo 10
+
+# do not let the cell volume change from the NPT volume
+fix holdBox all deform 1 x final 0.0 0.0 y final 0.0 0.0 z final 0.0 0.0 units box remap v
+
+# Select frozen atoms (z ≤ FREEZE_THRESHOLD)
+group frozen_atoms region INF INF INF INF 0.0 FREEZE_THRESHOLD
+
+# Fix frozen atoms (set force to zero so they don't move)
+fix freeze frozen_atoms setforce 0.0 0.0 0.0
+velocity frozen_atoms set 0.0 0.0 0.0
+
+# Perform relaxation
+min_style cg
+minimize 1e-10 1e-10 15000 15000
+
+variable etotal equal pe
+print "${etotal}" file energy.txt
+
+write_data CONTCAR.data nocoeff
