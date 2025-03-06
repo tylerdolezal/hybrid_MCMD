@@ -5,16 +5,9 @@ Created on Thu Jul 25 15:56:19 2024
 
 @author: dolez
 """
-import os
 import copy
-import random
-import numpy as np
-from ase.io import read, write
 import src.myfuncs as fun
 import src.lammps_functions as lfun
-
-# Constants
-k_B = 8.617333262145e-5  # Boltzmann constant in eV/K
 
 def hybrid_md_sampling(system, current_energy, md_params, additives):
     """
