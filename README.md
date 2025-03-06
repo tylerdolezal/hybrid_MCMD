@@ -23,17 +23,14 @@ The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dy
 - **`ht_sampling_routine.py`** – Runs MD simulations if the hybrid setting is enabled.
 - **`lammps_functions.py`** – Automates the creation and modification of LAMMPS input files.
 - **`myfuncs.py`** – A collection of functions used within `hybrid_mcmd.py` to streamline computations.
-
-## Directory Structure
 - **`no_MD/`** – Directory for pure Monte Carlo runs (no MD involved).
 - **`w_MD/`** – Directory for hybrid Monte Carlo-Molecular Dynamics runs.
 - **`chgnet_src/`** – Contains an edited version of `myfuncs.py` modified to run ASE with CHGNet instead of LAMMPS.
 
 ## Usage Instructions
 1. Modify `input_file` to specify the simulation parameters.
-2a. Run `hybrid_mcmd.py` to execute the simulation.
-2b. Run `execute.py` or `(p) execute.py` depending on whether a sequential or parallel execution is needed, to iterate over a range of compositions.
-3. Results will be stored in the data and structures directories.
+2. Run `execute.py` or `(p) execute.py` depending on whether a sequential or parallel execution is needed to iterate over a range of compositions or multiple simulation runs.
+3. Results will be stored in the data and structures directories and in `Alloy_X{at%}_run{iteration}` if `batch_mode` is used.
 4. Analyze output data for insights on material behavior.
 
 ## Dependencies
