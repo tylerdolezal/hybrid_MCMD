@@ -20,12 +20,12 @@ The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dy
 ### Supporting Source Files
 - **`potential.mod`** – Essential file automatically updated by the routine based on the alphabetized species found in the POSCAR files.
 - **`structure.mod`** – Reads in POSCAR files for LAMMPS simulations.
-- **`ht_sampling_routine.py`** – Runs MD simulations if the hybrid setting is enabled.
+- **`hybrid_md_routine.py`** – Runs MD simulations if the hybrid setting is enabled.
 - **`lammps_functions.py`** – Automates the creation and modification of LAMMPS input files.
 - **`myfuncs.py`** – A collection of functions used within `hybrid_mcmd.py` to streamline computations.
 - **`no_MD/`** – Directory for pure Monte Carlo runs (no MD involved).
 - **`w_MD/`** – Directory for hybrid Monte Carlo-Molecular Dynamics runs.
-- **`chgnet_src/`** – Contains an edited version of `myfuncs.py` modified to run ASE with CHGNet instead of LAMMPS.
+- **`chgnet_src/`** – Contains an edited version of `myfuncs.py` modified to run with CHGNet and ASE instead of LAMMPS.
 
 ## Usage Instructions
 1. Modify `input_file` to specify the simulation parameters.
