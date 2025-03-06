@@ -43,6 +43,7 @@ else:
     total_atoms = int(size**3 * atoms_per_unit_cell)
 
 # Parse additives
+undoped = False
 if input_data["additives"].lower() == "none":
     additives = []
     undoped = True
@@ -91,7 +92,10 @@ if batch_fractions:
 
         # Organize results
         # Base directory name
-        base_dir_name = "Alloy"+f"{'_'.join([dopant for _, dopant, _ in updated_additives])}{int(fraction * 100)}"
+        if undoped:
+            base_dir_name = "Alloy"
+        else:
+            base_dir_name = "Alloy"+f"{'_'.join([dopant for _, dopant, _ in updated_additives])}{int(fraction * 100)}"
 
         # Check if the directory already exists, and add a counter if necessary
         dir_name = base_dir_name

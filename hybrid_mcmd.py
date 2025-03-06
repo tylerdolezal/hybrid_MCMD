@@ -63,6 +63,10 @@ def hybrid_md_mc_routine(config):
 
     _, temperature, potential_type = config['md_params']
     lfun.update_md_input_file(config['md_params'], threshold)
+    
+    # switch to chgnet myfuncs if using chgnet
+    if potential_type == 'chgnet':
+        import chgnet_src.myfuncs as fun
 
     if not config['continue_run']:
         # Check for POSCAR-gb if GB is True
