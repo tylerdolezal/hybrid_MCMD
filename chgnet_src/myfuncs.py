@@ -517,6 +517,7 @@ def relax(system, move_type, supcomp_command):
 
     # Convert back to ASE atoms for constraint application
     ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+    ase_atoms.wrap()
 
     # Identify atoms to freeze (z-coordinates below freeze_threshold)
     freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
@@ -551,6 +552,7 @@ def initial_relax(system, supcomp_command):
 
     # Convert back to ASE atoms for constraint application
     ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+    ase_atoms.wrap()
 
     # Identify atoms to freeze (z-coordinates below freeze_threshold)
     freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
@@ -618,6 +620,7 @@ def run_md_simulation(system, supcomp_command):
 
     # Convert back to ASE atoms for constraint application
     ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+    ase_atoms.wrap()
 
     # Identify atoms to freeze (z-coordinates below freeze_threshold)
     freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
