@@ -89,6 +89,7 @@ For undoped simulations, set to `None`. Otherwise, specify a list of host-dopant
 - The routine currently supports **only X or X2 interstitials**, meaning dopant pairs with more than two interstitials (e.g., `CrO4`) **are not implemented**.
 - The interstitial species is **user-defined**, and the algorithm does not impose restrictions on atomic size.
 - Interstitials are placed **in the interstitial medium**, meaning **larger atoms (e.g., Si) will also be treated as interstitials**, regardless of their traditional lattice role.
+- **Warning**: Do not specify an interstitial species that is also present as a metal lattice species. The algorithm will ignore its on-lattice positions and attempt to move it only as an interstitial, which may lead to unintended behavior.
 
 ### Vacancies
 ```plaintext
