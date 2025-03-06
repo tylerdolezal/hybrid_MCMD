@@ -91,13 +91,13 @@ if batch_fractions:
 
         # Organize results
         # Base directory name
-        base_dir_name = "Alloy"+f"{'_'.join([dopant for _, dopant, _ in updated_additives])}_{int(fraction * 100)}"
+        base_dir_name = "Alloy"+f"{'_'.join([dopant for _, dopant, _ in updated_additives])}{int(fraction * 100)}"
 
         # Check if the directory already exists, and add a counter if necessary
         dir_name = base_dir_name
         counter = 1
         while os.path.exists(dir_name):
-            dir_name = f"{base_dir_name}_{counter}"
+            dir_name = f"{base_dir_name}_run{counter}"
             counter += 1
 
         # Create the final unique directory
