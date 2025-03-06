@@ -3,6 +3,7 @@ from ase.neighborlist import natural_cutoffs
 from pymatgen.io.ase import AseAtomsAdaptor
 from chgnet.model import StructOptimizer
 from chgnet.model.model import CHGNet
+from ase.constraints import FixAtoms
 from pymatgen.core import Structure
 import src.lammps_functions as fun
 from ase.io import read, write
@@ -513,6 +514,18 @@ def relax(system, move_type, supcomp_command):
     # execute atomic minimization without letting
     # the simcell relax from NPT sims
     structure = Structure.from_file("POSCAR")
+
+    # Convert back to ASE atoms for constraint application
+    ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+
+    # Identify atoms to freeze (z-coordinates below freeze_threshold)
+    freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
+
+    # Apply ASE constraint to freeze selected atoms
+    ase_atoms.set_constraint(FixAtoms(indices=[i for i, freeze in enumerate(freeze_mask) if freeze]))
+
+    # Convert back to Pymatgen structure
+    structure = AseAtomsAdaptor.get_structure(ase_atoms)
     
     # Perform full relaxation
     result = relaxer.relax(structure, steps=1200, fmax=0.1)
@@ -535,6 +548,19 @@ def initial_relax(system, supcomp_command):
     write("POSCAR", system, format="vasp", direct=True, sort=True)
 
     structure = Structure.from_file("POSCAR")
+
+    # Convert back to ASE atoms for constraint application
+    ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+
+    # Identify atoms to freeze (z-coordinates below freeze_threshold)
+    freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
+
+    # Apply ASE constraint to freeze selected atoms
+    ase_atoms.set_constraint(FixAtoms(indices=[i for i, freeze in enumerate(freeze_mask) if freeze]))
+
+    # Convert back to Pymatgen structure
+    structure = AseAtomsAdaptor.get_structure(ase_atoms)
+
     # start with coarse relax and then go to finer relax params
     for relax in iterative_relax:
         # Perform relaxation using StructOptimizer
@@ -589,6 +615,18 @@ def run_md_simulation(system, supcomp_command):
     write("POSCAR", system, format="vasp", direct=True)
 
     structure = Structure.from_file("POSCAR")
+
+    # Convert back to ASE atoms for constraint application
+    ase_atoms = AseAtomsAdaptor.get_atoms(structure)
+
+    # Identify atoms to freeze (z-coordinates below freeze_threshold)
+    freeze_mask = [atom.position[2] <= freeze_threshold for atom in ase_atoms]
+
+    # Apply ASE constraint to freeze selected atoms
+    ase_atoms.set_constraint(FixAtoms(indices=[i for i, freeze in enumerate(freeze_mask) if freeze]))
+
+    # Convert back to Pymatgen structure
+    structure = AseAtomsAdaptor.get_structure(ase_atoms)
 
     steps, T = grab_md_params()
 
