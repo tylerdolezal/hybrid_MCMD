@@ -77,12 +77,18 @@ Indicates whether the simulation should resume from a previous run.
 ```plaintext
 additives: None #[(Cr, B, 9)]
 ```
-For undoped simulations, set to `None`. Otherwise, specify a list of host-dopant pairs. For example:
+
+For undoped simulations, set to `None`. Otherwise, specify a list of host-dopant pairs. Examples include:
+
 - `(Cr, C, 9)`: Adds 9 units of Cr-C pairs.
 - `(Ti, B2, 9)`: Adds 9 Ti atoms, each bound to 2 B atoms (18 B atoms total).
-- `(None, B, #)`: Introduces B atoms as free interstitials.
+- `(None, H, #)`: Introduces H atoms as free interstitials.
+- Altogether we'd provide something like `additives: [(Cr, C, 9), (Ti, B2, 9), (None, H, 20)]
 
-Please note, I have not implemented logic to handle pairs with interstitials beyond two (such as CrO4).
+**Important Notes:**
+- The routine currently supports **only X or X2 interstitials**, meaning dopant pairs with more than two interstitials (e.g., `CrO4`) **are not implemented**.
+- The interstitial species is **user-defined**, and the algorithm does not impose restrictions on atomic size.
+- Interstitials are placed **in the interstitial medium**, meaning **larger atoms (e.g., Si) will also be treated as interstitials**, regardless of their traditional lattice role.
 
 ### Vacancies
 ```plaintext
