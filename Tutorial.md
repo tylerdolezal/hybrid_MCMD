@@ -116,6 +116,8 @@ If the provided simulation cell does not contain a vacuum in the z direction, a 
   - The height of the adsorbate sheet is determined using the van der Waals radius of the adsorbate and the metal elements present in the surface model.
   - The spacing between adsorbates in the sheet is determined using the van der Waals radius of the adsorbates.
 
+### Batch Mode 
+
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
 - Commented lines can be uncommented (`#` removed) to enable specific features.
