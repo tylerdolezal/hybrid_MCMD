@@ -37,10 +37,10 @@ For grain boundary simulations, this determines whether the lattice should be de
 
 ### MD Parameters
 ```plaintext
-md_params: 0, 1073, pfp
+md_params: 1000, 1073, pfp
 ```
 Defines the **MD execution settings**:
-- `0` – Number of MD steps per MD simulation. Set to 0 for pure MC runs.
+- `1000` – Number of MD steps per MD simulation. Set to 0 for pure MC runs.
 - `1073` – Target temperature in Kelvin.
 - `pfp` – Interatomic potential used for MD calculations (e.g., `pfp`, `chgnet`, `eam`, `meam`).
 
