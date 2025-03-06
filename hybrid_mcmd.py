@@ -49,6 +49,18 @@ def hybrid_md_mc_routine(config):
     # set global freeze threshold based on the surface input
     threshold = fun.set_global_threshold(config['surface'])
 
+    # update our list of interstitials based on the additives
+    # and surface adsorbates
+    if config['additives']:
+        species = []
+        for dopant in config['additives']:
+            species.append(dopant[1])
+        fun.set_interstitials(species)
+    
+    if config['surface']:
+        species = [config['surface'][0]]
+        fun.set_interstitials(species)
+
     _, temperature, potential_type = config['md_params']
     lfun.update_md_input_file(config['md_params'], threshold)
 
