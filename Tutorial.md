@@ -107,7 +107,12 @@ Defines a set of metallic elements available for swapping or selection. If `None
 surface: None #["O", "hexagonal", 7.0]
 ```
 Defines surface conditions. Set to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
-- `"O", "hexagonal", 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the frozen substrate layer.
+- `"O", "hexagonal", 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer (e.g., atoms at and below 7 Å will be frozen).
+
+**Important Notes:**
+If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
+  - The height of the adsorbate sheet is determined using the van der Waals radius of the adsorbate and the metal elements present in the surface model.
+  - The spacing between adsorbates in the sheet is determined using the van der Waals radius of the adsorbates.
 
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
