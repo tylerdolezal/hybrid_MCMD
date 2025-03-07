@@ -75,7 +75,7 @@ Indicates whether the simulation should resume from a previous run.
 
 ### Additives (Dopants)
 ```plaintext
-additives: None #[(Cr, B, 9)]
+additives: None or a list [(Cr, B, 9), ...]
 ```
 
 For undoped simulations, set to `None`. Otherwise, specify a list of host-dopant pairs. Examples include:
@@ -97,19 +97,19 @@ vacancies: False
 ```
 Specifies whether atomic vacancies should be introduced in the simulation. If `True`, the algorithm removes atoms from the majority element and disperses the vacancies to prevent clustering.
 
-### Metal Library
+### Metal Library (work in progress)
 ```plaintext
-metal_library: None #["Cr", "Fe", "Mo", "Nb", "Ni", "Ti"]
+metal_library: None or a list of elements to flip to [Cr, Fe, Mo, Nb, Ni, Ti, etc]
 ```
 Defines a set of metallic elements available for swapping or selection. If `None`, metal flips are disabled. The user must provide **POSCAR reference structures** in `src/chemical_potentials/` as `{metal1}{metal2}_POSCAR` (e.g., `CrNi_POSCAR`, always alphabetized). The algorithm uses the majority element as the primary reference and extracts chemical potential energies for all other metallic constituents.
 
 ### Surface Properties
 ```plaintext
-surface: None #["O", "hexagonal", 7.0]
+surface: None or a list [O, hexagonal, 7.0]
 ```
 Defines surface conditions. Set to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
-- `"O", "hexagonal", 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer (e.g., atoms at and below 7 Å will be frozen).
-- The logic accepts either `"hexagonal"` or `"square"`.
+- `O, hexagonal, 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer (e.g., atoms at and below 7 Å will be frozen).
+- The logic accepts either `hexagonal` or `square`.
 
 **Important Notes:**
 If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
