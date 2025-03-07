@@ -39,7 +39,7 @@ Ensure the following are installed:
 - **LAMMPS**
 - **ASE** 
 - **Python 3**
-- - **CHGNet** (if using this potential style)
+- **CHGNet** (if using this potential style)
 ---
 This repository is actively maintained and updated to improve efficiency and accuracy in hybrid MCMD simulations. Contributions and suggestions are welcome! To help improve the code, please consider running the routine with:  
 
