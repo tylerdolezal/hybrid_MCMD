@@ -279,11 +279,13 @@ def read_config_file():
                         config[key] = additives_list
 
                 elif key == 'metal_library':
-                    # If the value is explicitly "None", store it as None and move on
-                    if value.strip().lower() == "none":
+                    value = value.strip()
+
+                    # If explicitly "None", store as None
+                    if value.lower() == "none":
                         config[key] = None
                     else:
-                        # Remove square brackets and strip whitespace
+                        # Remove brackets and strip spaces
                         cleaned_value = value.replace("[", "").replace("]", "").strip()
                         
                         # Split by commas, strip spaces, remove extra quotes, and filter out empty entries
