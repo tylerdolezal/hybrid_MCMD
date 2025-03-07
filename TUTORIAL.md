@@ -2,7 +2,7 @@
 
 This tutorial explains the structure and usage of the `input_file` for the **Hybrid Monte Carlo Molecular Dynamics (MCMD) Routine**. It can be manually edited or populated using `gui.py`.
 
-## `GUI.py` Demonstration
+## `gui.py` Demonstration
 https://github.com/user-attachments/assets/73e5ef03-db30-4c4b-9554-cb763c016794
 
 ## Overview
