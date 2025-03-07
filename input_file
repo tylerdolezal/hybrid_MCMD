@@ -1,15 +1,15 @@
+continue_run: False
 composition: Ni=0.7, Cr=0.3
 crystal_shape: fcc
+size: 6
 grain_boundary: False
 randomize: False
-md_params: 0, 1073, pfp
-num_mc_steps: 6000
+md_params: 1000, 1073, pfp
 md_interval: 100
-size: 6
-supcomp_command: lmp_serial
-continue_run: False
-additives: None #[(Cr, B, 9)]
+num_mc_steps: 6000
+batch_mode: [0.01, 0.02, 0.03]
+additives: [(Ti, B2, 9)]
 vacancies: False
-metal_library: None #["Cr", "Fe", "Mo", "Nb", "Ni", "Ti"]
-surface: None #["O", "hexagonal", 7.0]
-batch_mode: None #[0.01, 0.02, 0.03]
+metal_library: None
+surface: None
+supcomp_command: lmp_serial
