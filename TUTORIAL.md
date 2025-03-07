@@ -1,6 +1,6 @@
 # Hybrid MCMD Input File Tutorial
 
-This tutorial explains the structure and usage of the `input_file` for the **Hybrid Monte Carlo Molecular Dynamics (MCMD) Routine**.
+This tutorial explains the structure and usage of the `input_file` for the **Hybrid Monte Carlo Molecular Dynamics (MCMD) Routine**. It can be manually edited or populated using `gui.py`.
 
 ## Overview
 The input file contains key parameters that define the simulation settings, including composition, crystal structure, Monte Carlo (MC) and Molecular Dynamics (MD) parameters, and additional modifiers like grain boundaries, vacancies, and additives.
