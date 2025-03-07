@@ -29,7 +29,7 @@ The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dy
 - **`chgnet_src/`** – Contains an edited version of `myfuncs.py` modified to run with CHGNet and ASE instead of LAMMPS.
 
 ## Usage Instructions
-1. Modify `input_file` with `gui.py` or manually to specify the simulation parameters. Please see TUTORIAL.md for a complete description of this input file.
+1. Modify `input_file` with `gui.py` or manually to specify the simulation parameters. Please see `TUTORIAL.md` for a complete description of this input file.
 2. Run `execute.py` or `(p) execute.py` depending on whether a sequential or parallel execution is needed to iterate over a range of compositions or multiple simulation runs.
 3. Results will be stored in the data and structures directories and in `Alloy_X{at%}_run{iteration}` if `batch_mode` is used.
 4. Analyze output data for insights on material behavior.
