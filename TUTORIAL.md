@@ -130,7 +130,6 @@ When `batch_mode` is activated the data and structures are saved to the director
 
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
-- Commented lines can be uncommented (`#` removed) to enable specific features.
 - Default values should be reviewed to align with the intended study parameters.
 
 ---
