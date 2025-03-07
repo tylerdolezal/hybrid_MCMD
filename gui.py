@@ -54,7 +54,7 @@ def generate_input_file():
             with open(file_path, "w") as file:
                 file.writelines(updated_lines)
             
-            messagebox.showinfo("Info", f"Reading inputs from existing input_file! Closing GUI.")
+            messagebox.showinfo("Info", f"Reading inputs from existing input_file!")
             root.destroy()  # Close GUI
         else:
             messagebox.showerror("Error", "input_file does not exist! Run without 'Continue Run' checked first.")
@@ -94,7 +94,7 @@ def generate_input_file():
             root.destroy()  # Close GUI
             
     root.destroy()  # Close GUI
-    messagebox.showinfo("Success", f"Input file saved to: {file_path}")
+    messagebox.showinfo("Success", f"input_file generated successfully!")
 
 
 # Create the main application window
@@ -159,7 +159,7 @@ md_interval_entry = tk.Entry(root, textvariable=md_interval_var, width=10)
 # Additional input fields
 fields = [
     ("Composition", composition_var, "Composition of the undoped simulation lattice", "Ni=0.7, Cr=0.3"),
-    ("Crystal Shape", crystal_shape_var, "Crystal type of the undoped simulation lattice", "fcc"),
+    ("Crystal Shape", crystal_shape_var, "Crystal type of the undoped simulation lattice", "fcc or bcc or hcp"),
     ("Superlattice Multiplier", size_var, "Multiply lattice by (m, m, m) to build superlattice", "6"),
     ("Tsim (K)", tsim_var, "Simulation temperature in Kelvin", "1073"),
     ("MD Potential", md_potential_var, "Potential type used with LAMMPS (or CHGnet)", "pfp or meam or eam or chgnet"),
