@@ -45,7 +45,3 @@ This repository is actively maintained and updated to improve efficiency and acc
 `python3 execute.py 2> error.log`
 
 This will capture errors separately, making it easier to track and resolve any issues.
-
-## GUI.py Demonstration
-https://github.com/user-attachments/assets/2bc23af0-daf4-4127-834d-27f3bcca12e9
-
