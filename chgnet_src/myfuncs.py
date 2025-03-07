@@ -244,27 +244,16 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     # Select a random B atom
     b_index = random.choice(b_indices)
 
-    # Set up neighbor list to find neighbors within the cutoff
-    cutoff = natural_cutoffs(system)
-    neighbor_list = MaskedNeighborList(cutoff, system=system)
-    neighbor_list.update(system)
-
-    # Find indices of neighbors
-    indices, offsets = neighbor_list.get_neighbors(b_index)
-
-    # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
+    # find metal neighbors nearest to the interstitial
+    metal_neighbors = get_nearest_neighbors(system, b_index, cutoff=2.25) 
 
     # select a nearest metal neighbor
     neighbor_index = random.choice(metal_neighbors)
 
-    indices, offsets = neighbor_list.get_neighbors(neighbor_index)
+    # Get the indices of the nearest neighbors of the selected neighbor
+    indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.25)
 
-
-    # Exclude the original B/C atom from the list of potential switch candidates
-    indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
-
-    # filter out neighbors of same type
+    # filter out neighbors of same type; ignore self-swaps
     indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
 
     if indices:
@@ -282,7 +271,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     else:
 
         # Set up neighbor list to find neighbors within a wider cutoff
-        neighbor_list = MaskedNeighborList([4.0/2] * len(system), system=system)
+        neighbor_list = MaskedNeighborList([5.0/2] * len(system), system=system)
         neighbor_list.update(system)
 
         indices, offsets = neighbor_list.get_neighbors(neighbor_index)
