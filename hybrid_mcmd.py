@@ -5,7 +5,6 @@ import pandas as pd
 import random
 import copy
 import json
-import src.myfuncs as fun
 import src.lammps_functions as lfun
 import src.hybrid_md_routine as ht
 
@@ -33,6 +32,7 @@ def hybrid_md_mc_routine(config):
     Returns:
         None
     """
+    import src.myfuncs as fun
     # Validate input
     required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
                      'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
@@ -47,8 +47,10 @@ def hybrid_md_mc_routine(config):
         os.makedirs(directory, exist_ok=True)
 
     # set global freeze threshold based on the surface input
-    threshold = fun.set_global_threshold(config['surface'])
-
+    threshold = 0.0
+    if config['surface']:
+        threshold = fun.set_global_threshold(config['surface'])
+        
     # update our list of interstitials based on the additives
     # and surface adsorbates
     if config['additives']:
