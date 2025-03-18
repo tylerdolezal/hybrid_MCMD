@@ -211,7 +211,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     # not possible to place nearby
     return None
 
-def shuffle_neighbor_types(system, cutoff=2.25):
+def shuffle_neighbor_types(system, cutoff=2.25, local=False):
     """
     Selects a random B atom, finds its neighbors within a specified cutoff,
     and shuffles the atomic types among these neighbors.
@@ -226,6 +226,7 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     """
 
     b_indices = [atom.index for atom in system if atom.symbol in interstitials]
+    metal_indices = [atom.index for atom in system if atom.symbol not in interstitials]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -239,11 +240,15 @@ def shuffle_neighbor_types(system, cutoff=2.25):
     # select a nearest metal neighbor
     neighbor_index = random.choice(metal_neighbors)
 
-    # Get the indices of the nearest neighbors of the selected neighbor
-    indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.25)
+    if local:
+        # Get the indices of the nearest neighbors of the selected neighbor
+        indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.25)
 
-    # filter out neighbors of same type; ignore self-swaps
-    indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
+        # filter out neighbors of same type; ignore self-swaps
+        indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
+    
+    else:
+        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol]
 
     if indices:
         switch_with_index = random.choice(indices)
@@ -969,7 +974,7 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
     return metal_neighbors
 
 
-def select_random_atoms(system, move_type):
+def select_random_atoms(system, move_type, local=False):
     global freeze_threshold  # Use the global parameter
     # filter out B and C atoms as we will find new 'hosts' for them rather than attempt
     # swaps and translational moves
@@ -994,19 +999,29 @@ def select_random_atoms(system, move_type):
             host_atom_type = system[host_atom].symbol  # Get the chemical symbol of the host atom
             swapped.append(host_atom)
 
-            # Now select a nearest neighbor that is NOT of the same chemical type
-            neighbors = get_nearest_neighbors(system, host_atom)
-            valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type]
-
-            if valid_neighbors:
-                atom = random.choice(valid_neighbors)
-                if atom not in swapped:
-                    swapped.append(atom)
-            else:
-
-                # start checking 2NN shell
-                neighbors = get_nearest_neighbors(system, host_atom, 4.0)
+            if local:
+                # Now select a nearest neighbor that is NOT of the same chemical type
+                neighbors = get_nearest_neighbors(system, host_atom)
                 valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type]
+            
+
+                if valid_neighbors:
+                    atom = random.choice(valid_neighbors)
+                    if atom not in swapped:
+                        swapped.append(atom)
+                else:
+
+                    # start checking 2NN shell
+                    neighbors = get_nearest_neighbors(system, host_atom, 4.0)
+                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type]
+
+                    if valid_neighbors:
+                        atom = random.choice(valid_neighbors)
+                        if atom not in swapped:
+                            swapped.append(atom)
+            
+            else:
+                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type]
 
                 if valid_neighbors:
                     atom = random.choice(valid_neighbors)
