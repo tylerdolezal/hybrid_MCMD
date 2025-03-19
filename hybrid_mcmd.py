@@ -46,10 +46,13 @@ def hybrid_md_mc_routine(config):
     for directory in ["structures", "data", "data/epochs"]:
         os.makedirs(directory, exist_ok=True)
 
+    _, temperature, potential_type = config['md_params']
+    lfun.update_md_input_file(config['md_params'])
+
     # set global freeze threshold based on the surface input
-    threshold = 0.0
     if config['surface']:
         threshold = fun.set_global_threshold(config['surface'])
+        lfun.update_md_input_file(config['md_params'], threshold)
         
     # update our list of interstitials based on the additives
     # and surface adsorbates
@@ -58,13 +61,10 @@ def hybrid_md_mc_routine(config):
         for dopant in config['additives']:
             species.append(dopant[1])
         fun.set_interstitials(species)
-    
+
     if config['surface']:
         species = [config['surface'][0]]
-        fun.set_interstitials(species)
-
-    _, temperature, potential_type = config['md_params']
-    lfun.update_md_input_file(config['md_params'], threshold)
+        fun.set_interstitials(species)        
     
     # switch to chgnet myfuncs if using chgnet
     if potential_type == 'chgnet':
