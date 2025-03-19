@@ -1104,7 +1104,7 @@ def select_random_atoms(system, move_type, local=False):
 
                     # Find distant sites outside the nearest neighbor shell
                     cluster_neighbors = get_nearest_neighbors(system, b_or_c)
-                    potential_sites = [i for i in non_bc_indices if i not in cluster_neighbors]
+                    potential_sites = [i for i in non_bc_indices if i not in cluster_neighbors and (freeze_threshold <= 0.0 or system[i].position[2] > freeze_threshold)]
 
                     if potential_sites:
                         # Select a distant site
@@ -1125,6 +1125,19 @@ def select_random_atoms(system, move_type, local=False):
                 atoms_picked.append(b_or_c)
 
             attempts += 1
+
+            if attempts > 25:
+                np.savetxt("Failed to find new host!", [])
+
+                first = random.choice(non_bc_indices)
+                atoms_picked.append(first)
+                atoms_picked.append(random.choice([i for i in non_bc_indices if i not in atoms_picked and system[i].symbol != system[first].symbol]))
+
+                # Pair the atoms for host swap
+                swap_pairs = [(atoms_picked[i], atoms_picked[i+1]) for i in range(0, num_atoms_to_swap, 2)]
+
+                return swap_pairs
+                
 
         # Pair the atoms for host swap
         swap_pairs = [(atoms_picked[i], atoms_picked[i+1]) for i in range(0, num_atoms_to_swap, 2)]
