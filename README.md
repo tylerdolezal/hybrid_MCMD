@@ -3,11 +3,11 @@
 ## Overview
 The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dynamics (MD) simulations in a hybrid fashion to explore material behaviors under various doping conditions. The routine allows for automated execution, statistical data collection, and efficient handling of simulation parameters. As a reminder the catalogue of MC moves are:
 
-- **Swap atomic positions of nearest neighbor metallic constituents:** Select a pair of metallic atoms from within the nearest neighbor shell and attempt to swap their positions in the lattice.
-- **Relocate a light interstitial atom near a new metallic host:** Select a light interstitial atom (B, C, H, or N) and attempt to place it near a different metallic atom within its nearest neighbor shell.
+- **Swap atomic positions of metallic constituents:** Select two metallic atoms of different chemical types and attempt to swap their positions within the lattice.
+- **Relocate a light interstitial atom near a new metallic host:** Select a light interstitial atom and attempt to place it near a different metallic atom within its nearest neighbor shell.
 - **Introduce proximity between two light interstitial atoms:** Select two light interstitial atoms and attempt to place one of them within the first nearest neighbor shell of the other. If the first shell is fully occupied, the placement is attempted in the second nearest neighbor shell.
-- **Separate two neighboring light interstitial atoms:** If such a pair exists, select a light interstitial atom and attempt to move it away from its nearest light interstitial neighbor. This move balances the proximity move, ensuring there is a chance to promote both segregation and aggregation among the light interstitials.
-- **Swap a metal neighbor of a light interstitial atom:** For a selected light interstitial atom, identify one of its nearest metallic neighbors and swap that metal’s position with one of the metallic atom's own nearest neighbors.
+- **Separate two neighboring light interstitial atoms:** If a pair of neighboring light interstitials exists, select one and attempt to move it away from its nearest interstitial neighbor. This move balances the proximity adjustment, ensuring an opportunity to promote both segregation and aggregation of light interstitials.
+- **Swap a metal neighbor of a light interstitial atom:** For a selected light interstitial atom, identify one of its nearest metallic neighbors and swap its position with that of another metal atom of a different chemical type.
 
 ## File Descriptions
 
