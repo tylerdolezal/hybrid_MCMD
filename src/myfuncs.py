@@ -211,7 +211,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     # not possible to place nearby
     return None
 
-def shuffle_neighbor_types(system, cutoff=2.25, local=False):
+def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     """
     Selects a random B atom, finds its neighbors within a specified cutoff,
     and shuffles the atomic types among these neighbors.
@@ -977,7 +977,7 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
     return metal_neighbors
 
 
-def select_random_atoms(system, move_type, local=False):
+def select_random_atoms(system, move_type, local=True):
     global freeze_threshold  # Use the global parameter
     # filter out B and C atoms as we will find new 'hosts' for them rather than attempt
     # swaps and translational moves
