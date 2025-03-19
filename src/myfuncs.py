@@ -1004,7 +1004,7 @@ def select_random_atoms(system, move_type, local=False):
             if local:
                 # Now select a nearest neighbor that is NOT of the same chemical type
                 neighbors = get_nearest_neighbors(system, host_atom)
-                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type]
+                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
             
 
                 if valid_neighbors:
@@ -1015,7 +1015,7 @@ def select_random_atoms(system, move_type, local=False):
 
                     # start checking 2NN shell
                     neighbors = get_nearest_neighbors(system, host_atom, 4.0)
-                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type]
+                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
 
                     if valid_neighbors:
                         atom = random.choice(valid_neighbors)
@@ -1070,9 +1070,6 @@ def select_random_atoms(system, move_type, local=False):
 
             # introduce B into another B's cluster to attempt growth of phase
             if choice == 1:
-
-
-
 
                 first_b_or_c = random.choice(bc_indices)
 
