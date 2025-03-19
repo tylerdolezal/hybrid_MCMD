@@ -68,6 +68,7 @@ def generate_input_file():
         "composition": composition_var.get(),
         "crystal_shape": crystal_shape_var.get(),
         "size": size_var.get(),
+        "local_swap": local_swap_var.get(),
         "grain_boundary": grain_boundary_var.get(),
         "randomize": randomize_var.get() if grain_boundary_var.get() else False,
         "md_params": md_params_value,
@@ -122,6 +123,7 @@ vacancies_var = tk.BooleanVar(value=False)
 metal_library_var = tk.StringVar(value="[]")
 surface_var = tk.StringVar(value="[]")
 batch_mode_var = tk.StringVar(value="[]")
+local_swap_var = tk.BooleanVar(value=True)
 
 # Layout frame
 frame = tk.Frame(root)
@@ -140,12 +142,16 @@ tk.Checkbutton(frame, variable=vacancies_var).grid(row=0, column=3, sticky="w")
 tk.Label(frame, text="Grain Boundary:").grid(row=2, column=0, sticky="w")
 tk.Checkbutton(frame, variable=grain_boundary_var, command=update_randomize_visibility).grid(row=2, column=1, sticky="w")
 
+tk.Label(frame, text="Local Swap:").grid(row=1, column=2, sticky="w")
+tk.Checkbutton(frame, variable=local_swap_var).grid(row=1, column=3, sticky="w")
+
 preamble_fields = [
     ("Continue Run", continue_run_var, "Picking up where we left off?", "True or False"),
     ("Hybrid Run", hybrid_run_var, "Use MD in MCMD?", "True or False"),
     ("Vacancies", vacancies_var, "Place vacancies in the lattice?", "True or False"),
     ("Grain Boundary", grain_boundary_var, "Using a predefined grain boundary cell?", "True or False"),
-    ("Randomize", randomize_var, "Shuffle chemical symbols based on composition?", "True or False")]
+    ("Randomize", randomize_var, "Shuffle chemical symbols based on composition?", "True or False"),
+    ("Local Swap", local_swap_var, "Swap metals locally?", "True or False")]
 
 # MD Parameters
 md_params_label = tk.Label(root, text="MD Parameters:")
