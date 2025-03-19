@@ -9,6 +9,7 @@ import copy
 import os
 
 interstitials = ["B", "C", "Cl", "O", "N", "H"]
+ignore = []
 
 common_structures = {
     # Nickel-based superalloy elements
