@@ -226,7 +226,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     """
 
     b_indices = [atom.index for atom in system if atom.symbol in interstitials]
-    metal_indices = [atom.index for atom in system if atom.symbol  and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
+    metal_indices = [atom.index for atom in system if atom.symbol  and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -245,7 +245,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
         indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.25)
 
         # filter out neighbors of same type; ignore self-swaps
-        indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
+        indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
     
     else:
         indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
@@ -386,7 +386,7 @@ def flip_atoms(system, metal_choices, supcomp_command):
     majority_metal, chemical_potentials, binary_potentials = generate_chemical_potentials(choices, supcomp_command)
 
     # Grab all metal indices (ignoring B, C, H, N, O)
-    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
+    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
     if not indices:
         raise ValueError("No valid metal atoms found in the system.")
 
