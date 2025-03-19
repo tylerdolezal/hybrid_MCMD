@@ -36,12 +36,13 @@ def hybrid_md_mc_routine(config):
     # Validate input
     required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
                      'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
-                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface']
+                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'local_swap']
 
     for key in required_keys:
         if key not in config:
             raise ValueError(f"Missing required configuration key: {key}")
 
+    local = config['local_swap']
     # Create required directories
     for directory in ["structures", "data", "data/epochs"]:
         os.makedirs(directory, exist_ok=True)
@@ -143,7 +144,7 @@ def hybrid_md_mc_routine(config):
 
         # Select atoms for the move
         if move_type not in ['shuffle', 'flip']:
-            swap_pairs = fun.select_random_atoms(system, move_type)
+            swap_pairs = fun.select_random_atoms(system, move_type, local)
         else:
             swap_pairs = (0, 0)  # Placeholder for unsupported moves
 
@@ -177,7 +178,7 @@ def hybrid_md_mc_routine(config):
 
         else:
             delta_E, new_energy = fun.calculate_energy_change(
-                system, energies, swap_pairs, move_type, False, config['supcomp_command'], metal_choices
+                system, energies, swap_pairs, move_type, False, config['supcomp_command'], local, metal_choices
             )
 
             if random.random() < np.exp(-delta_E / (k_B * temperature)):
@@ -249,7 +250,7 @@ def read_config_file():
                     config[key] = tuple(map(lambda x: int(x) if x.isdigit() else x, value.split(', ')))
                 elif key in {'num_mc_steps', 'md_interval', 'size'}:
                     config[key] = int(value)
-                elif key in {'grain_boundary', 'continue_run', 'vacancies', 'randomize'}:
+                elif key in {'grain_boundary', 'continue_run', 'vacancies', 'randomize', 'local_swap'}:
                     config[key] = value.lower() == 'true'
                 elif key == 'additives':
                     if value.strip().lower() == "none":
