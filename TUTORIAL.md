@@ -104,7 +104,7 @@ Specifies whether atomic vacancies should be introduced in the simulation. If `T
 ```plaintext
 metal_library: None or a list of elements to flip to [Cr, Fe, Mo, Nb, Ni, Ti, etc]
 ```
-Defines a set of metallic elements available for swapping or selection. If `None`, metal flips are disabled. The user must provide **POSCAR reference structures** in `src/chemical_potentials/` as `{metal1}{metal2}_POSCAR` (e.g., `CrNi_POSCAR`, always alphabetized). The algorithm uses the majority element as the primary reference and extracts chemical potential energies for all other metallic constituents.
+Defines a set of metallic elements available for swapping or selection. If `None`, metal flips are disabled. The user must provide **POSCAR reference structures** in `src/chemical_potentials/` as `{metal1}{metal2}_POSCAR` (e.g., `CrNi_POSCAR`, always alphabetized). The algorithm uses the majority element as the primary reference and extracts chemical potential energies for all other metallic constituents. This setting is still under development and has not been thoroughly tested yet.
 
 ### Surface Properties
 ```plaintext
