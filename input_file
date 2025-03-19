@@ -12,4 +12,5 @@ additives: [(Ti, B2, 9)]
 vacancies: False
 metal_library: None
 surface: None
+local_swap: True
 supcomp_command: lmp_serial
