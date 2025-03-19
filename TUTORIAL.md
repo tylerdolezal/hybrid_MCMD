@@ -128,6 +128,13 @@ The `batch_mode` setting allows users to iterate through compositions or to perf
 
 When `batch_mode` is activated the data and structures are saved to the directory `Alloy_X{at%}_run{iteration}`. So a repeated batch at 1 at% of B would look like, `Alloy_B1_run1`, `Alloy_B1_run2`, etc. For undoped simulations, provide a list of values such that `len() = number of iterations to perform` and the data will be saved as `Alloy_run1`, ..., `Alloy_runN`.
 
+### Local vs. Global Swapping
+```plaintext
+local_swap: True or False
+```
+- `True`: Metallic swaps occur only within the nearest-neighbor shell.
+- `False`: Swaps are performed in global mode, where metal atoms are randomly selected from anywhere in the simulation cell.
+
 ## Usage Notes
 - Ensure proper syntax to avoid parsing errors.
 - Default values should be reviewed to align with the intended study parameters.
