@@ -1049,7 +1049,7 @@ def select_random_atoms(system, move_type, local=False):
         # do not attempt cluster growth until
         # enough time has been allowed for B/C diffusion
         if len(np.loadtxt('data/energies')) >= 500:
-            choice = random.choice([0, 0, 1, 2])
+            choice = random.choice([0, 0, 0, 1, 2])
 
             # we need to catch an error that occurs when we only have
             # a single interstitial floating around
