@@ -192,7 +192,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     indices, offsets = neighbor_list.get_neighbors(host_index)
 
     # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore and atoms[idx].position[2] > freeze_threshold]
+    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atoms[idx].position[2] > freeze_threshold)]
     for attempts in range(100):
         host_index = random.choice(metal_neighbors)
 
@@ -225,7 +225,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
     """
 
     b_indices = [atom.index for atom in system if atom.symbol in interstitials]
-    metal_indices = [atom.index for atom in system if atom.symbol  and system[atom].position[2] > freeze_threshold]
+    metal_indices = [atom.index for atom in system if atom.symbol  and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -247,7 +247,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
         indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
     
     else:
-        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and system[idx].position[2] > freeze_threshold]
+        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
 
     if indices:
         switch_with_index = random.choice(indices)
@@ -270,7 +270,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
         indices, offsets = neighbor_list.get_neighbors(neighbor_index)
 
         # Exclude the original B/C atom from the list of potential switch candidates
-        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore and system[idx].position[2] > freeze_threshold]
+        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
 
         # filter out neighbors of same type
         neighbor_indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
@@ -385,7 +385,7 @@ def flip_atoms(system, metal_choices, supcomp_command):
     majority_metal, chemical_potentials, binary_potentials = generate_chemical_potentials(choices, supcomp_command)
 
     # Grab all metal indices (ignoring B, C, H, N, O)
-    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and system[atom].position[2] > freeze_threshold]
+    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
     if not indices:
         raise ValueError("No valid metal atoms found in the system.")
 
@@ -966,7 +966,7 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
             idx for idx in indices
             if system[idx].symbol not in interstitials + ignore
             and idx != nearest_neighbor_index
-            and system[idx].position[2] > freeze_threshold
+            and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)
         ]
 
         # If no metal neighbors found, increase cutoff and try again
@@ -980,7 +980,7 @@ def select_random_atoms(system, move_type, local=False):
     global freeze_threshold  # Use the global parameter
     # filter out B and C atoms as we will find new 'hosts' for them rather than attempt
     # swaps and translational moves
-    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore and atom.position[2] > freeze_threshold]
+    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
     bc_indices = [i for i, atom in enumerate(system) if atom.symbol in interstitials]
 
     # cannot be an odd int because these are pairs of atoms
@@ -1004,7 +1004,7 @@ def select_random_atoms(system, move_type, local=False):
             if local:
                 # Now select a nearest neighbor that is NOT of the same chemical type
                 neighbors = get_nearest_neighbors(system, host_atom)
-                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
+                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
             
 
                 if valid_neighbors:
@@ -1015,7 +1015,7 @@ def select_random_atoms(system, move_type, local=False):
 
                     # start checking 2NN shell
                     neighbors = get_nearest_neighbors(system, host_atom, 4.0)
-                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
+                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
 
                     if valid_neighbors:
                         atom = random.choice(valid_neighbors)
@@ -1023,7 +1023,7 @@ def select_random_atoms(system, move_type, local=False):
                             swapped.append(atom)
             
             else:
-                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
+                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
 
                 if valid_neighbors:
                     atom = random.choice(valid_neighbors)
@@ -1060,7 +1060,7 @@ def select_random_atoms(system, move_type, local=False):
             # first we try diffusing in local area
             # if no sites are available, explore the whole cell
             if attempts > 20:
-                non_bc_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore and atom.position[2] > freeze_threshold]
+                non_bc_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
 
                 # too crowded to place nearby, so flip choice back to 0
                 choice = 0
