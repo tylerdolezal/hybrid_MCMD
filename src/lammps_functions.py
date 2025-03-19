@@ -162,7 +162,7 @@ def lammps_to_poscar():
     afile = "CONTCAR"
     write(afile, atoms, format='vasp', direct=True, sort=True)
 
-def update_md_input_file(params, threshold):
+def update_md_input_file(params, threshold=0.0):
     # params = (md_steps, md_temperature)
 
     if int(params[0]) == int(0):

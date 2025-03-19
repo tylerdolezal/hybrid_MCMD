@@ -8,8 +8,7 @@ import random
 import copy
 import os
 
-interstitials = ["B", "C", "O", "N", "H"]
-ignore = []
+interstitials = ["B", "C", "Cl", "O", "N", "H"]
 
 common_structures = {
     # Nickel-based superalloy elements
@@ -193,7 +192,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     indices, offsets = neighbor_list.get_neighbors(host_index)
 
     # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore]
+    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore and atoms[idx].position[2] > freeze_threshold]
     for attempts in range(100):
         host_index = random.choice(metal_neighbors)
 
@@ -226,7 +225,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
     """
 
     b_indices = [atom.index for atom in system if atom.symbol in interstitials]
-    metal_indices = [atom.index for atom in system if atom.symbol not in interstitials]
+    metal_indices = [atom.index for atom in system if atom.symbol  and system[atom].position[2] > freeze_threshold]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -248,7 +247,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
         indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
     
     else:
-        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol]
+        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and system[idx].position[2] > freeze_threshold]
 
     if indices:
         switch_with_index = random.choice(indices)
@@ -271,7 +270,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
         indices, offsets = neighbor_list.get_neighbors(neighbor_index)
 
         # Exclude the original B/C atom from the list of potential switch candidates
-        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore]
+        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore and system[idx].position[2] > freeze_threshold]
 
         # filter out neighbors of same type
         neighbor_indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
@@ -285,7 +284,10 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=False):
             system.positions[neighbor_index], system.positions[switch_with_index] = p2, p1
             with open('shuffle_pairs', 'w') as file:
                 file.write(f"{neighbor_index}, {switch_with_index}")
-
+        
+        else:
+            np.savetxt("Failed to identify shuffle pairs!", [])
+            return system
 
     return system
 
@@ -383,7 +385,7 @@ def flip_atoms(system, metal_choices, supcomp_command):
     majority_metal, chemical_potentials, binary_potentials = generate_chemical_potentials(choices, supcomp_command)
 
     # Grab all metal indices (ignoring B, C, H, N, O)
-    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore]
+    indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and system[atom].position[2] > freeze_threshold]
     if not indices:
         raise ValueError("No valid metal atoms found in the system.")
 
@@ -1021,12 +1023,16 @@ def select_random_atoms(system, move_type, local=False):
                             swapped.append(atom)
             
             else:
-                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type]
+                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and system[atom].position[2] > freeze_threshold]
 
                 if valid_neighbors:
                     atom = random.choice(valid_neighbors)
                     if atom not in swapped:
                         swapped.append(atom)
+                
+                else:
+                    np.savetxt("Failed to find valid neighbors!", [])
+                    return system
 
 
         # Pair the atoms for swapping
