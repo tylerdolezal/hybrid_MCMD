@@ -225,7 +225,6 @@ def shuffle_neighbor_types(system, local):
     # if we are in a region where no nearest neighbors of a different type exist,
     # then grab a different type metal from somewhere in the cell and try it
     else:
-        np.savetxt("Failed to identify shuffle pairs in 1NN shell!", [])
         # grab it from anywhere in the cell
         indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
 
@@ -298,10 +297,10 @@ def generate_chemical_potentials(choices, supcomp_command):
                 _, mu = relax(atoms, 'flip', supcomp_command)  # Run relaxation function
                 E_binary = mu  # Extract binary energy
             except Exception as e:
-                print(f"⚠ Error processing {poscar_path}: {e}")
+                print(f"Error processing {poscar_path}: {e}")
                 continue  # Skip this pair if relaxation fails
         else:
-            print(f"⚠ Missing POSCAR file: {poscar_path}. Skipping {metal1}-{metal2}")
+            print(f"Missing POSCAR file: {poscar_path}. Skipping {metal1}-{metal2}")
             continue  # Skip if the POSCAR file does not exist
 
         # Get pure metal energies
@@ -313,7 +312,7 @@ def generate_chemical_potentials(choices, supcomp_command):
         num_B = sum(1 for atom in atoms if atom.symbol == metal2)
 
         if num_A == 0 or num_B == 0:
-            print(f"⚠ Invalid stoichiometry detected for {metal1}-{metal2}. Skipping.")
+            print(f"Invalid stoichiometry detected for {metal1}-{metal2}. Skipping.")
             continue  # Skip if no valid stoichiometry
 
         # Compute chemical potentials
