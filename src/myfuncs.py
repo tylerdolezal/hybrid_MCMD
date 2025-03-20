@@ -53,42 +53,6 @@ def set_interstitials(additives):
     interstitials = list(set(interstitials) | set(additives))  # Merge and remove duplicates
 
 from ase.neighborlist import NeighborList
-class MaskedNeighborList(NeighborList):
-    def __init__(self, cutoff, system, **kwargs):
-        """
-        A universal NeighborList wrapper that ignores frozen atoms in lower layers.
-        
-        Parameters:
-            cutoff (float): Cutoff radius for nearest neighbor search.
-            system (ase.Atoms): The simulation cell.
-            kwargs: Additional arguments passed to NeighborList.
-        """
-        global freeze_threshold  # Use the global setting
-
-        self.system = system
-        self.freeze_threshold = freeze_threshold  # Set once and never change
-        
-        # Identify frozen atoms (z ≤ threshold)
-        self.frozen_mask = system.positions[:, 2] <= self.freeze_threshold
-        
-        # Initialize base NeighborList
-        super().__init__(cutoff, self_interaction=False, bothways=True, **kwargs)
-        self.update(system)  # Update with the initial system
-
-    def get_neighbors(self, atom_index):
-        """Overrides get_neighbors() to exclude frozen atoms."""
-        if self.frozen_mask[atom_index]:
-            return [], []  # No neighbors for frozen atoms
-
-        indices, offsets = super().get_neighbors(atom_index)
-        
-        # Filter out frozen neighbors
-        valid_neighbors = [idx for idx in indices if not self.frozen_mask[idx]]
-        valid_offsets = [offsets[i] for i in range(len(indices)) if not self.frozen_mask[indices[i]]]
-
-        return valid_neighbors, valid_offsets
-
-
 def update_phase_field_dataset(PFM_data, old_system, system, dE, swap_pairs, species_counts, move_type):
 
     if move_type == 'shuffle':
@@ -153,7 +117,7 @@ def snapshots(mc_step, snapshot_every):
 
 
 
-def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
+def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
     host_position = atoms[host_index].position
     bc_position = atoms[bc_index].position
     min_distance = 2.0 # angstroms from itself in the current interstitial site
@@ -186,10 +150,8 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
 
     # Set up neighbor list to find neighbors within the cutoff
     cutoff = natural_cutoffs(atoms)
-    neighbor_list = MaskedNeighborList(cutoff, system=atoms)
+    neighbor_list = NeighborList(cutoff, self_interaction=False, bothways=True)
     neighbor_list.update(atoms)
-
-    # Find indices of neighbors
     indices, offsets = neighbor_list.get_neighbors(host_index)
 
     # Collect the types of these neighbors that are metal types
@@ -211,7 +173,7 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.25):
     # not possible to place nearby
     return None
 
-def shuffle_neighbor_types(system, cutoff=2.25, local=True):
+def shuffle_neighbor_types(system, local):
     """
     Selects a random B atom, finds its neighbors within a specified cutoff,
     and shuffles the atomic types among these neighbors.
@@ -226,7 +188,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     """
 
     b_indices = [atom.index for atom in system if atom.symbol in interstitials]
-    metal_indices = [atom.index for atom in system if atom.symbol  and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
+    metal_indices = [atom.index for atom in system if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
 
     if not b_indices:
         return system  # Return unchanged if no B atoms found
@@ -235,14 +197,14 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     b_index = random.choice(b_indices)
 
     # find metal neighbors nearest to the interstitial
-    metal_neighbors = get_nearest_neighbors(system, b_index, cutoff=2.25) 
+    metal_neighbors = get_nearest_neighbors(system, b_index, cutoff=2.75) 
 
     # select a nearest metal neighbor
     neighbor_index = random.choice(metal_neighbors)
 
     if local:
         # Get the indices of the nearest neighbors of the selected neighbor
-        indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.25)
+        indices = get_nearest_neighbors(system, neighbor_index, cutoff=2.75)
 
         # filter out neighbors of same type; ignore self-swaps
         indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
@@ -250,7 +212,7 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     else:
         indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
 
-    if indices:
+    if len(indices) > 0:
         switch_with_index = random.choice(indices)
         # Switch positions
         p1 = system.positions[neighbor_index].copy()
@@ -263,21 +225,12 @@ def shuffle_neighbor_types(system, cutoff=2.25, local=True):
     # if we are in a region where no nearest neighbors of a different type exist,
     # then grab a different type metal from somewhere in the cell and try it
     else:
+        np.savetxt("Failed to identify shuffle pairs in 1NN shell!", [])
+        # grab it from anywhere in the cell
+        indices = [idx for idx in metal_indices if system[idx].symbol != system[neighbor_index].symbol and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
 
-        # Set up neighbor list to find neighbors within a wider cutoff
-        neighbor_list = MaskedNeighborList([5.0/2] * len(system), system=system)
-        neighbor_list.update(system)
-
-        indices, offsets = neighbor_list.get_neighbors(neighbor_index)
-
-        # Exclude the original B/C atom from the list of potential switch candidates
-        neighbor_indices = [idx for idx in indices if system[idx].symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)]
-
-        # filter out neighbors of same type
-        neighbor_indices = [idx for idx in indices if system[idx].symbol != system[neighbor_index].symbol]
-
-        if neighbor_indices:
-            switch_with_index = random.choice(neighbor_indices)
+        if len(indices) > 0:
+            switch_with_index = random.choice(indices)
             # Switch positions
             p1 = system.positions[neighbor_index].copy()
             p2 = system.positions[switch_with_index].copy()
@@ -442,7 +395,7 @@ def add_new_species(atoms, counter):
     return(counter)
 
 # Relax the pre and post swapped cells
-def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, supcomp_command, metal_choices=None):
+def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, supcomp_command, local, metal_choices=None):
 
     system_copy = copy.deepcopy(system)
     delta_mu = 0.0 # for when we are not flipping
@@ -476,7 +429,7 @@ def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, su
             system_copy[apair[1]].position = p2
 
     elif move_type == 'shuffle':
-        system_copy = shuffle_neighbor_types(system_copy)
+        system_copy = shuffle_neighbor_types(system_copy, local)
 
     elif move_type == 'MD':
         system_copy, new_energy = run_md_simulation(system_copy)
@@ -930,7 +883,7 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
 
     return(atoms)
 
-def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_cutoff=5.0):
+def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_cutoff=5.0):
     cutoff = natural_cutoffs(system)
 
     if disperse:
@@ -940,8 +893,8 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
 
     # Incrementally increase the cutoff until we find a valid metal neighbor
     while not metal_neighbors and cutoff[0] <= max_cutoff:
-        # Create a new neighbor list with the current cutoff
-        neighbor_list = MaskedNeighborList(cutoff, system=system)
+        # Create ASE NeighborList
+        neighbor_list = NeighborList(cutoff, self_interaction=False, bothways=True)
         neighbor_list.update(system)
         indices, offsets = neighbor_list.get_neighbors(atom_index)
 
@@ -957,7 +910,7 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
             return indices
 
         # Identify the current nearest neighbor
-        if indices:
+        if len(indices) > 0:
             nearest_neighbor_index = indices[np.argmin(distances)]
         else:
             nearest_neighbor_index = None
@@ -977,67 +930,79 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.25, max_c
     return metal_neighbors
 
 
-def select_random_atoms(system, move_type, local=True):
+def select_random_atoms(system, move_type, local):
     global freeze_threshold  # Use the global parameter
-    # filter out B and C atoms as we will find new 'hosts' for them rather than attempt
-    # swaps and translational moves
-    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
+
+    # Identify all valid metal atom indices
+    all_metal_indices = [i for i, atom in enumerate(system) if atom.symbol not in interstitials + ignore and 
+                         (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
     bc_indices = [i for i, atom in enumerate(system) if atom.symbol in interstitials]
 
-    # cannot be an odd int because these are pairs of atoms
-    selection = {     'swap': 2,
-                 'translate': 2,
-                  'new_host': 2}
+    # Handle empty lists to prevent selection failures
+    if not all_metal_indices:
+        np.savetxt("Error: No valid metal atoms found.", [])
+        return None
 
-
-    # Perturb or swap hosts for 1 pair of atoms (2 atoms)
-    num_atoms_to_swap = selection[move_type]
+    selection = {'swap': 2, 'translate': 2, 'new_host': 2}
+    num_atoms_to_swap = selection.get(move_type, 2)
 
     if move_type != 'new_host':
-
         swapped = []
-        while len(swapped) < num_atoms_to_swap:
+        max_attempts = 20  # Prevent infinite loops
+        
+        for attempt in range(max_attempts):
+            if len(swapped) >= num_atoms_to_swap:
+                break  # Stop early if we found enough atoms
+
             # Choose the host atom randomly from metal indices
             host_atom = random.choice(all_metal_indices)
-            host_atom_type = system[host_atom].symbol  # Get the chemical symbol of the host atom
+            host_atom_type = system[host_atom].symbol  
+
+            if host_atom in swapped:
+                continue  # Avoid duplicates
+
             swapped.append(host_atom)
 
             if local:
-                # Now select a nearest neighbor that is NOT of the same chemical type
+                # Select nearest neighbor that is NOT of the same chemical type
                 neighbors = get_nearest_neighbors(system, host_atom)
-                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
-            
+                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and 
+                                   (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
+
+                # Fallback if no valid nearest neighbors
+                if not valid_neighbors:
+                    valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and 
+                                       (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
 
                 if valid_neighbors:
                     atom = random.choice(valid_neighbors)
                     if atom not in swapped:
                         swapped.append(atom)
                 else:
+                    np.savetxt("Error: No valid neighbors found", np.array([]))
+                    return None
 
-                    # start checking 2NN shell
-                    neighbors = get_nearest_neighbors(system, host_atom, 4.0)
-                    valid_neighbors = [atom for atom in neighbors if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
-
-                    if valid_neighbors:
-                        atom = random.choice(valid_neighbors)
-                        if atom not in swapped:
-                            swapped.append(atom)
-            
             else:
-                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
+                # Global selection of a different element
+                valid_neighbors = [atom for atom in all_metal_indices if system[atom].symbol != host_atom_type and 
+                                   (freeze_threshold <= 0.0 or system[atom].position[2] > freeze_threshold)]
 
                 if valid_neighbors:
                     atom = random.choice(valid_neighbors)
                     if atom not in swapped:
                         swapped.append(atom)
-                
                 else:
-                    np.savetxt("Failed to find valid neighbors!", [])
-                    return system
-
+                    np.savetxt("Error: No valid neighbors found in global swap", np.array([]))
+                    return None
+        
+        # Check if we successfully got enough atoms
+        if len(swapped) < num_atoms_to_swap:
+            np.savetxt("Error: Max retries reached; no neighbors found", np.array([]))
+            return None
 
         # Pair the atoms for swapping
         swap_pairs = [(swapped[i], swapped[i+1]) for i in range(0, num_atoms_to_swap, 2)]
+        return swap_pairs
 
 
     elif move_type == 'new_host':
