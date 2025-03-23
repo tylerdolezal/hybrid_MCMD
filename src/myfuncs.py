@@ -135,27 +135,8 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
         np.array([-distance, distance, 0.0]),
         np.array([-distance, -distance, 0.0])]
 
-    '''
-    # Try to place the B/C atom at a nearby position
-    for displacement in displacement_vectors:
-        new_position = host_position + displacement
-
-        # Ensure the new position is not the same as the current dopant position
-        if not np.allclose(new_position, bc_position, atol=min_distance):  # Explicit check for dopant atom
-            # Also ensure the new position is not too close to any other atoms
-            if not any(np.allclose(new_position, atom.position, atol=min_distance-1.0) for atom in atoms):
-                return new_position  # Return the new position if valid
-    '''
-    # If all initial positions are occupied, try additional spots around nearest neighbors
-
-    # Set up neighbor list to find neighbors within the cutoff
-    cutoff = natural_cutoffs(atoms)
-    neighbor_list = NeighborList(cutoff, self_interaction=False, bothways=True)
-    neighbor_list.update(atoms)
-    indices, offsets = neighbor_list.get_neighbors(host_index)
-
-    # Collect the types of these neighbors that are metal types
-    metal_neighbors = [idx for idx in indices if atoms[idx].symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atoms[idx].position[2] > freeze_threshold)]
+    # find metal neighbors nearest to the interstitial
+    metal_neighbors = get_nearest_neighbors(atoms, host_index, cutoff=2.75) 
     for attempts in range(100):
         host_index = random.choice(metal_neighbors)
 
