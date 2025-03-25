@@ -495,8 +495,7 @@ def run_md_simulation(system, supcomp_command):
     return system, E
 
 from ase import Atoms
-from math import floor
-def place_additives_nearby(in625_supercell, additives):
+def place_additives_nearby(in625_supercell, additives, surface, GB):
     global freeze_threshold  # Use the global parameter
     for additive in additives:
         parent = additive[0]
@@ -505,8 +504,18 @@ def place_additives_nearby(in625_supercell, additives):
 
         Natoms = len(in625_supercell)
         # Randomly select positions in the supercell to replace with TiB2
-        # Get valid (non-frozen) atom indices
-        non_frozen_indices = [i for i in range(Natoms) if in625_supercell[i].position[2] > freeze_threshold]
+        # Get valid atom indices
+        z_length = in625_supercell.get_cell()[2,2]
+        non_frozen_indices = [i for i in range(Natoms) if freeze_threshold < in625_supercell[i].position[2]]
+
+        # avoid placement near the free surface
+        if surface:
+            non_frozen_indices = [i for i in non_frozen_indices if in625_supercell[i].position[2] < (z_length - freeze_threshold)]
+        
+        # avoid placement near the GB
+        if GB:
+            non_frozen_indices = [i for i in non_frozen_indices if not (0.48 < (in625_supercell[i].position[2] / z_length) < 0.52)]
+
         # Randomly select valid positions
         positions = np.random.choice(non_frozen_indices, num_tib2_units, replace=False)
 
@@ -807,40 +816,55 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
     else:
         # load in the pre-existing grain boundary structure
         atoms = read("POSCAR-gb", format="vasp")
+        num_zones = 10
         if randomize:
+            # Extract symbols from the composition dictionary
+            symbols = list(composition.keys())
+            percentages = [composition[symbol] for symbol in symbols]
+
             # Calculate the total number of atoms
             total_atoms = len(atoms)
 
-            # Extract symbols and percentages from the library
-            symbols = list(dict(composition).keys())
-            percentages = [x for x in composition.values()]
-
-            # Calculate the exact number of each type of atom
+            # Calculate the number of atoms for each species
             num_atoms = {symbol: int(round(total_atoms * percentage)) for symbol, percentage in zip(symbols, percentages)}
 
-            # Adjust for rounding errors by adding/removing atoms from the most frequent species
+            # Adjust for rounding errors
             actual_total = sum(num_atoms.values())
             difference = total_atoms - actual_total
             most_frequent_symbol = symbols[np.argmax(percentages)]
             num_atoms[most_frequent_symbol] += difference
 
+            # Partition the structure into zones along the z-direction
+            z_positions = [atom.position[2] for atom in atoms]
+            min_z, max_z = min(z_positions), max(z_positions)
+            zone_height = (max_z - min_z) / num_zones
+            zones = {i: [] for i in range(num_zones)}
 
-            # Create the list of atomic symbols based on the exact numbers
-            atomic_symbols = []
-            for symbol, count in num_atoms.items():
-                atomic_symbols.extend([symbol] * count)
+            # Assign atoms to zones based on their z-position
+            for i, atom in enumerate(atoms):
+                zone_index = int((atom.position[2] - min_z) // zone_height)
+                zone_index = min(zone_index, num_zones - 1)  # Ensure atoms at the top are in the last zone
+                zones[zone_index].append(i)
 
-            # Shuffle the list to randomize the positions
-            np.random.shuffle(atomic_symbols)
+            # Uniformly distribute species across all zones
+            for zone_indices in zones.values():
+                zone_symbols = []
 
-            # Update the symbols of the existing atoms object with atomic symbols
-            atoms.set_chemical_symbols(atomic_symbols)
+                # Allocate atoms for each species based on composition (not the number of atoms in the zone)
+                for symbol, count in num_atoms.items():
+                    zone_count = int(round(len(zone_indices) * composition[symbol]))
+                    zone_symbols.extend([symbol] * zone_count)
+
+                # Shuffle and assign symbols within the zone
+                np.random.shuffle(zone_symbols)
+                for index, symbol in zip(zone_indices, zone_symbols):
+                    atoms[index].symbol = symbol
 
     if surface:
         atoms = add_sheet(atoms, surface[0], surface[1])
 
     if additives:
-        place_additives_nearby(atoms, additives)
+        place_additives_nearby(atoms, additives, surface, grain_boundary)
 
     if vacancies:
         atoms = AtomsWithVacancies(symbols=atoms.get_chemical_symbols(), positions=atoms.get_positions(), cell=atoms.get_cell())
