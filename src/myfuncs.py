@@ -506,15 +506,31 @@ def place_additives_nearby(in625_supercell, additives, surface, GB):
         # Randomly select positions in the supercell to replace with TiB2
         # Get valid atom indices
         z_length = in625_supercell.get_cell()[2,2]
-        non_frozen_indices = [i for i in range(Natoms) if freeze_threshold < in625_supercell[i].position[2]]
 
-        # avoid placement near the free surface
+        # Start with all valid indices, excluding pre-existing interstitials
+        non_frozen_indices = [
+            i for i in range(Natoms) if in625_supercell[i].symbol not in interstitials + ignore
+            ]
+
+        # Refine by accounting for the frozen layers
+        non_frozen_indices = [
+            i for i in non_frozen_indices if freeze_threshold < in625_supercell[i].position[2]
+            ]
+
+        # Further refine to avoid placement near the free surface
         if surface:
-            non_frozen_indices = [i for i in non_frozen_indices if in625_supercell[i].position[2] < (z_length - freeze_threshold)]
-        
-        # avoid placement near the GB
+            # Get the maximum z-coordinate of metal atoms only
+            max_metal_z = max(
+                [in625_supercell[i].position[2] for i in range(Natoms) if in625_supercell[i].symbol not in interstitials + ignore]
+                )
+            non_frozen_indices = [
+                i for i in non_frozen_indices if in625_supercell[i].position[2] < (max_metal_z - freeze_threshold)
+                ]
+        # Further refine to avoid placement near the GB
         if GB:
-            non_frozen_indices = [i for i in non_frozen_indices if not (0.48 < (in625_supercell[i].position[2] / z_length) < 0.52)]
+            non_frozen_indices = [
+                i for i in non_frozen_indices if not (18 < in625_supercell[i].position[2] < 26)
+            ]
 
         # Randomly select valid positions
         positions = np.random.choice(non_frozen_indices, num_tib2_units, replace=False)
