@@ -527,10 +527,13 @@ def place_additives_nearby(in625_supercell, additives, surface, GB):
                 i for i in non_frozen_indices if in625_supercell[i].position[2] < (max_metal_z - freeze_threshold)
                 ]
         # Further refine to avoid placement near the GB
+        '''
+        I need to fix up the GB input to account for min, max GB region
         if GB:
             non_frozen_indices = [
                 i for i in non_frozen_indices if not (18 < in625_supercell[i].position[2] < 26)
             ]
+        '''
 
         # Randomly select valid positions
         positions = np.random.choice(non_frozen_indices, num_tib2_units, replace=False)
