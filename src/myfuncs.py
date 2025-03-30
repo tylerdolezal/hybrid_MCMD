@@ -364,7 +364,15 @@ def flip_atoms(system, metal_choices, supcomp_command):
 
     return system, delta_mu
 
-
+def update_move_list():
+    atoms = read("POSCAR")
+    chemical_species = set(atoms.get_chemical_symbols())
+    # if there are more than two species that correspond to interstitials, the move list should include swap_ints
+    interstitial_species = [x for x in interstitials if x in chemical_species]
+    if len(interstitial_species) > 1:
+        return ['swap', 'new_host', 'swap_ints', 'shuffle']
+    else:
+        return ['swap', 'new_host', 'new_host', 'shuffle']
 
 def add_new_species(atoms, counter):
 
@@ -380,7 +388,7 @@ def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, su
     system_copy = copy.deepcopy(system)
     delta_mu = 0.0 # for when we are not flipping
 
-    if move_type == 'swap':
+    if move_type in ['swap', 'swap_ints']:
 
         for apair in swapped_pairs:
             p1 = system_copy[apair[0]].position.copy()
@@ -438,7 +446,7 @@ def relax(system, move_type, supcomp_command):
     # execute atomic minimization without letting
     # the simcell relax from NPT sims
 
-    if move_type in ['new_host', 'flip']:
+    if move_type in ['new_host', 'flip', 'swap_ints']:
         os.system(f"{supcomp_command} -in relax.in")
     else:
         os.system(f"{supcomp_command} -in static_relax.in")
@@ -528,13 +536,12 @@ def place_additives_nearby(in625_supercell, additives, surface, GB):
                 ]
         # Further refine to avoid placement near the GB
         '''
-        I need to fix up the GB input to account for min, max GB region
+        I need to update the GB inputs to account for the min, max cuttoff logic
         if GB:
             non_frozen_indices = [
                 i for i in non_frozen_indices if not (18 < in625_supercell[i].position[2] < 26)
             ]
         '''
-
         # Randomly select valid positions
         positions = np.random.choice(non_frozen_indices, num_tib2_units, replace=False)
 
@@ -906,7 +913,7 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
 
     return(atoms)
 
-def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_cutoff=5.0):
+def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_cutoff=5.0, ints=False):
     cutoff = natural_cutoffs(system)
 
     if disperse:
@@ -939,13 +946,22 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_c
             nearest_neighbor_index = None
 
         # Collect only metal neighbors, ignoring interstitials & frozen atoms
-        metal_neighbors = [
+        if ints:
+            max_cutoff = 4.0
+            metal_neighbors = [
             idx for idx in indices
-            if system[idx].symbol not in interstitials + ignore
-            and idx != nearest_neighbor_index
+            if system[idx].symbol in interstitials
             and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)
-        ]
-
+            ]
+        
+        else:
+            metal_neighbors = [
+                idx for idx in indices
+                if system[idx].symbol not in interstitials + ignore
+                and idx != nearest_neighbor_index
+                and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)
+            ]
+        
         # If no metal neighbors found, increase cutoff and try again
         if not metal_neighbors:
             cutoff = [min(c + 0.25, max_cutoff) for c in cutoff]
@@ -966,10 +982,10 @@ def select_random_atoms(system, move_type, local):
         np.savetxt("Error: No valid metal atoms found.", [])
         return None
 
-    selection = {'swap': 2, 'translate': 2, 'new_host': 2}
+    selection = {'swap': 2, 'new_host': 2, 'swap_ints': 2}
     num_atoms_to_swap = selection.get(move_type, 2)
 
-    if move_type != 'new_host':
+    if move_type == 'swap':
         swapped = []
         max_attempts = 20  # Prevent infinite loops
         
@@ -1026,9 +1042,41 @@ def select_random_atoms(system, move_type, local):
         # Pair the atoms for swapping
         swap_pairs = [(swapped[i], swapped[i+1]) for i in range(0, num_atoms_to_swap, 2)]
         return swap_pairs
+    
+    if move_type == 'swap_ints':
+        # Try to swap interstitials of different types
+        swapped = []
+        max_attempts = 20
+
+        for attempt in range(max_attempts):
+            if len(swapped) >= num_atoms_to_swap:
+                break
+
+            first = random.choice(bc_indices)
+            first_atom_type = system[first].symbol 
+            neighbors = get_nearest_neighbors(system, first, ints=True)
+            
+            if neighbors:
+                valid_neighbors = [atom for atom in neighbors if system[atom].symbol != first_atom_type]
+                if not valid_neighbors:
+                    continue  # Try again with a new 'first'
+                second = random.choice(valid_neighbors)
+            else:
+                continue  # Try again with a new 'first'
+
+            if first not in swapped and second not in swapped:
+                swapped.append(first)
+                swapped.append(second)
+
+        # Only return if we found ints to swap
+        if len(swapped) >= num_atoms_to_swap:
+            swap_pairs = [(swapped[i], swapped[i+1]) for i in range(0, num_atoms_to_swap, 2)]
+            return swap_pairs
+        else:
+            move_type = 'new_host'  # Fall back to new_host
 
 
-    elif move_type == 'new_host':
+    if move_type == 'new_host':
 
         atoms_picked = []
         attempts = 0
@@ -1075,8 +1123,9 @@ def select_random_atoms(system, move_type, local):
                 cluster_detected = False
                 cluster_pair = None
 
-                for interstitial in bc_indices:
-                    neighbors = get_nearest_neighbors(system, interstitial, True)
+                shuffle_indices = random.shuffle(bc_indices)
+                for interstitial in shuffle_indices:
+                    neighbors = get_nearest_neighbors(system, interstitial, disperse=True)
                     neighbor_interstitials = [n for n in neighbors if system[n].symbol in interstitials]
 
                     if neighbor_interstitials:  # A cluster exists
@@ -1125,8 +1174,7 @@ def select_random_atoms(system, move_type, local):
                 swap_pairs = [(atoms_picked[i], atoms_picked[i+1]) for i in range(0, num_atoms_to_swap, 2)]
 
                 return swap_pairs
-                
-
+        
         # Pair the atoms for host swap
         swap_pairs = [(atoms_picked[i], atoms_picked[i+1]) for i in range(0, num_atoms_to_swap, 2)]
 
@@ -1146,12 +1194,13 @@ def parse_mc_statistics(file_path='data/MonteCarloStatistics'):
                 key = key.strip()
                 value = value.strip()
                 # Convert value to appropriate type
-                if key in ['Steps Completed', 'Accepted Swaps', 'New Hosts Accepted', 'Flips Accepted', 'Cluster Shuffles Accepted', 'MD Simulations Accepted', 'Steps for MD']:
+                if key in ['Steps Completed', 'Accepted Metal Swaps', 'Accepted Int Swaps', 'New Hosts Accepted', 'Flips Accepted', 'Cluster Shuffles Accepted', 'MD Simulations Accepted', 'Steps for MD']:
                     stats[key] = int(value)
                 elif key in ['Acceptance %', 'Rejection %']:
                     stats[key] = float(value)
 
-    move_counts = {'swap': stats['Accepted Swaps'],
+    move_counts = {'swap': stats['Accepted Metal Swaps'],
+                   'swap_ints': stats['Accepted Int Swaps'],
                    'new_host': stats['New Hosts Accepted'],
                    'flip': stats['Flips Accepted'],
                    'shuffle': stats['Cluster Shuffles Accepted'],
