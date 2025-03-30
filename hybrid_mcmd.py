@@ -129,9 +129,9 @@ def hybrid_md_mc_routine(config):
     move_list = ['swap']
     metal_choices = config['metal_library']
     if config['additives'] or config['surface']:
-        move_list = ['swap', 'new_host', 'new_host', 'shuffle']
+        move_list = fun.update_move_list()
         if metal_choices:
-            move_list = ['swap', 'new_host', 'new_host', 'shuffle', 'flip']
+            move_list =  move_list + ['flip']
 
     snapshot_every = 100
     num_mc_steps = config['num_mc_steps']
@@ -213,7 +213,8 @@ def hybrid_md_mc_routine(config):
             file.write(f'Steps Completed: {mc_step}\n')
             file.write(f'Acceptance %: {accepted/mc_step * 100}\n')
             file.write(f'Rejection %: {rejected/mc_step * 100}\n')
-            file.write(f"\nAccepted Swaps: {move_counts['swap']}\n")
+            file.write(f"\nAccepted Metal Swaps: {move_counts['swap']}\n")
+            file.write(f"Accepted Int Swaps: {move_counts['swap_ints']}\n")
             file.write(f"New Hosts Accepted: {move_counts['new_host']}\n")
             file.write(f"Flips Accepted: {move_counts['flip']}\n")
             file.write(f"Cluster Shuffles Accepted: {move_counts['shuffle']}\n")
