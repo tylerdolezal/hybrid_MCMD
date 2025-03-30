@@ -1123,8 +1123,8 @@ def select_random_atoms(system, move_type, local):
                 cluster_detected = False
                 cluster_pair = None
 
-                shuffle_indices = random.shuffle(bc_indices)
-                for interstitial in shuffle_indices:
+                random.shuffle(bc_indices)
+                for interstitial in bc_indices:
                     neighbors = get_nearest_neighbors(system, interstitial, disperse=True)
                     neighbor_interstitials = [n for n in neighbors if system[n].symbol in interstitials]
 
