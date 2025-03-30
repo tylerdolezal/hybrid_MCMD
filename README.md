@@ -8,6 +8,7 @@ The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dy
 - **Introduce proximity between two light interstitial atoms:** Select two light interstitial atoms and attempt to place one of them within the first nearest neighbor shell of the other. If the first shell is fully occupied, the placement is attempted in the second nearest neighbor shell.
 - **Separate two neighboring light interstitial atoms:** If a pair of neighboring light interstitials exists, select one and attempt to move it away from its nearest interstitial neighbor. This move balances the proximity adjustment, ensuring an opportunity to promote both segregation and aggregation of light interstitials.
 - **Swap a metal neighbor of a light interstitial atom:** For a selected light interstitial atom, identify one of its nearest metallic neighbors and swap its position with that of another metal atom of a different chemical type.
+- **Swap two dissimilar light interstitial atoms:** If two different types of light interstitials are present, select a pair of dissimilar interstitial atoms in the nearest neighbor shell and attempt to exchange their positions. This move enables local chemical rearrangements and competition for binding environments. _Only enabled for systems with chemically diverse light interstitials_.
 
 ## File Descriptions
 
