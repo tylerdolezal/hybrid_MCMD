@@ -65,7 +65,7 @@ def hybrid_md_mc_routine(config):
 
     if config['surface']:
         species = [config['surface'][0]]
-        fun.set_interstitials(species)        
+        fun.set_interstitials(species, surface=True)        
     
     # switch to chgnet myfuncs if using chgnet
     if potential_type == 'chgnet':
@@ -129,15 +129,25 @@ def hybrid_md_mc_routine(config):
     move_list = ['swap']
     metal_choices = config['metal_library']
     if config['additives'] or config['surface']:
-        move_list = fun.update_move_list()
+        move_list = ['swap', 'new_host', 'new_host', 'shuffle']
         if metal_choices:
             move_list =  move_list + ['flip']
 
     snapshot_every = 100
     num_mc_steps = config['num_mc_steps']
     md_interval = config['md_interval']
-
+    update_list = False
     for mc_step in range(steps_completed + 1, num_mc_steps + 1):
+
+        # One-time move_list update for surface calculations; give time for dimer 
+        # dissociation before attempting interstitial swaps at surface
+        if not update_list and mc_step > 1000 and config['surface']:
+            move_list = fun.update_move_list(config['surface'])
+
+            if metal_choices:
+                move_list += ['flip']
+
+            update_list = True
 
         # Randomly choose a move type
         move_type = random.choice(move_list)
