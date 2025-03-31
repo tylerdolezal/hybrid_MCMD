@@ -9,6 +9,7 @@ import copy
 import os
 
 interstitials = ["B", "C", "Cl", "O", "N", "H"]
+surface_interstitials = []
 ignore = []
 
 common_structures = {
@@ -48,9 +49,12 @@ def set_global_threshold(surface):
     print(f"Global freeze_threshold set to: {freeze_threshold}")
     return freeze_threshold
 
-def set_interstitials(additives):
+def set_interstitials(additives, surface=False):
     global interstitials
     interstitials = list(set(interstitials) | set(additives))  # Merge and remove duplicates
+    if surface:
+        global surface_interstitials
+        surface_interstitials = list(set(surface_interstitials) | set(additives))
 
 from ase.neighborlist import NeighborList
 def update_phase_field_dataset(PFM_data, old_system, system, dE, swap_pairs, species_counts, move_type):
@@ -118,8 +122,6 @@ def snapshots(mc_step, snapshot_every):
 
 
 def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
-    host_position = atoms[host_index].position
-    bc_position = atoms[bc_index].position
     min_distance = 2.0 # angstroms from itself in the current interstitial site
     distance = 1.0  # angstroms from the host
     sqrt_distance = 1.2*np.sqrt(2)
@@ -135,23 +137,34 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
         np.array([-distance, distance, 0.0]),
         np.array([-distance, -distance, 0.0])]
 
-    # find metal neighbors nearest to the interstitial
-    metal_neighbors = get_nearest_neighbors(atoms, host_index, cutoff=2.75) 
-    for attempts in range(100):
-        host_index = random.choice(metal_neighbors)
+    def try_displacements(central_indices):
+        for _ in range(100):
+            central_atom = random.choice(central_indices)
+            center_pos = atoms[central_atom].position
 
-        host_position = atoms[host_index].position
-        # Try to place the B/C atom at a nearby position
-        for displacement in displacement_vectors:
-            new_position = host_position + displacement
+            for displacement in displacement_vectors:
+                new_position = center_pos + displacement
 
-            # Ensure the new position is not the same as the current dopant position
-            if not np.allclose(new_position, bc_position, atol=min_distance):  # Explicit check for dopant atom
-                # Also ensure the new position is not too close to any other atoms
-                if not any(np.allclose(new_position, atom.position, atol=min_distance-1.0) for atom in atoms):
-                    return new_position  # Return the new position if valid
+                # Reject if too close to any atom (including itself)
+                if all(np.linalg.norm(atom.position - new_position) >= min_distance for atom in atoms):
+                    return new_position
+        return None
 
-    # not possible to place nearby
+    # Step 1: Try placing near host's metal neighbors
+    metal_neighbors = get_nearest_neighbors(atoms, host_index, cutoff=cutoff)
+    if metal_neighbors:
+        new_position = try_displacements(metal_neighbors)
+        if new_position is not None:
+            return new_position
+
+    # Step 2: Fallback — try placing near any metal atom
+    all_metals = [i for i, atom in enumerate(atoms) if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
+    if all_metals:
+        new_position = try_displacements(all_metals)
+        if new_position is not None:
+            return new_position
+
+    # Step 3: If all else fails, return None
     return None
 
 def shuffle_neighbor_types(system, local):
@@ -364,12 +377,12 @@ def flip_atoms(system, metal_choices, supcomp_command):
 
     return system, delta_mu
 
-def update_move_list():
+def update_move_list(surface):
     atoms = read("POSCAR")
     chemical_species = set(atoms.get_chemical_symbols())
     # if there are more than two species that correspond to interstitials, the move list should include swap_ints
     interstitial_species = [x for x in interstitials if x in chemical_species]
-    if len(interstitial_species) > 1:
+    if len(interstitial_species) > 1 and surface:
         return ['swap', 'new_host', 'swap_ints', 'shuffle']
     else:
         return ['swap', 'new_host', 'new_host', 'shuffle']
@@ -918,6 +931,10 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_c
 
     if disperse:
         cutoff = [2.8 / 2.0] * len(system)
+    
+    if ints:
+        # tone down the max cutoff for interstitial swapping
+        max_cutoff = 4.0
 
     metal_neighbors = []
 
@@ -947,13 +964,12 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_c
 
         # Collect only metal neighbors, ignoring interstitials & frozen atoms
         if ints:
-            max_cutoff = 4.0
             metal_neighbors = [
             idx for idx in indices
             if system[idx].symbol in interstitials
             and (freeze_threshold <= 0.0 or system[idx].position[2] > freeze_threshold)
             ]
-        
+
         else:
             metal_neighbors = [
                 idx for idx in indices
@@ -964,7 +980,10 @@ def get_nearest_neighbors(system, atom_index, disperse=False, cutoff=2.75, max_c
         
         # If no metal neighbors found, increase cutoff and try again
         if not metal_neighbors:
-            cutoff = [min(c + 0.25, max_cutoff) for c in cutoff]
+            if cutoff[0] >= max_cutoff:
+                break # Stop trying — we've hit the limit
+            
+            cutoff = [min(c + 0.25, max_cutoff) for c in cutoff]    
 
     return metal_neighbors
 
@@ -1044,36 +1063,33 @@ def select_random_atoms(system, move_type, local):
         return swap_pairs
     
     if move_type == 'swap_ints':
-        # Try to swap interstitials of different types
         swapped = []
-        max_attempts = 20
-
-        for attempt in range(max_attempts):
+        surface_indices = [i for i, atom in enumerate(system) if atom.symbol in surface_interstitials]
+        # Sample half of them, or at least 1 atom to be safe
+        num_to_sample = max(1, len(surface_indices) // 2)
+        untried = random.sample(surface_indices, num_to_sample)
+        
+        for first in untried:
             if len(swapped) >= num_atoms_to_swap:
                 break
 
-            first = random.choice(bc_indices)
             first_atom_type = system[first].symbol 
             neighbors = get_nearest_neighbors(system, first, ints=True)
-            
+
             if neighbors:
                 valid_neighbors = [atom for atom in neighbors if system[atom].symbol != first_atom_type]
-                if not valid_neighbors:
-                    continue  # Try again with a new 'first'
-                second = random.choice(valid_neighbors)
-            else:
-                continue  # Try again with a new 'first'
+                valid_neighbors = [atom for atom in valid_neighbors if atom not in swapped]
 
-            if first not in swapped and second not in swapped:
-                swapped.append(first)
-                swapped.append(second)
+                if valid_neighbors and first not in swapped:
+                    second = random.choice(valid_neighbors)
+                    swapped.append(first)
+                    swapped.append(second)
 
-        # Only return if we found ints to swap
         if len(swapped) >= num_atoms_to_swap:
             swap_pairs = [(swapped[i], swapped[i+1]) for i in range(0, num_atoms_to_swap, 2)]
             return swap_pairs
         else:
-            move_type = 'new_host'  # Fall back to new_host
+            move_type = 'new_host'
 
 
     if move_type == 'new_host':
