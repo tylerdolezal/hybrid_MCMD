@@ -122,49 +122,82 @@ def snapshots(mc_step, snapshot_every):
 
 
 def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
-    min_distance = 2.0 # angstroms from itself in the current interstitial site
-    distance = 1.0  # angstroms from the host
-    sqrt_distance = 1.2*np.sqrt(2)
+    default_min_distance = 1.0
+    relaxed_min_distance = 0.75
+    displacement_distance = 1.0
+    sqrt_distance = 1.2 * np.sqrt(2)
 
-    # Displacement vectors to place B/C atom diagonally from the host
     displacement_vectors = [
-        np.array([sqrt_distance, 0.0, 0.0]),
-        np.array([-sqrt_distance, 0.0, 0.0]),
-        np.array([0.0, sqrt_distance, 0.0]),
-        np.array([0.0, -sqrt_distance, 0.0]),
-        np.array([distance, distance, 0.0]),
-        np.array([distance, -distance, 0.0]),
-        np.array([-distance, distance, 0.0]),
-        np.array([-distance, -distance, 0.0])]
+        # Along principal axes
+        np.array([ sqrt_distance, 0.0, 0.0 ]),
+        np.array([-sqrt_distance, 0.0, 0.0 ]),
+        np.array([ 0.0, sqrt_distance, 0.0 ]),
+        np.array([ 0.0,-sqrt_distance, 0.0 ]),
+        np.array([ 0.0, 0.0, sqrt_distance ]),
+        np.array([ 0.0, 0.0,-sqrt_distance ]),
 
-    def try_displacements(central_indices):
-        for _ in range(100):
-            central_atom = random.choice(central_indices)
+        # Face diagonals (xy-plane)
+        np.array([ displacement_distance, displacement_distance, 0.0 ]),
+        np.array([ displacement_distance,-displacement_distance, 0.0 ]),
+        np.array([-displacement_distance, displacement_distance, 0.0 ]),
+        np.array([-displacement_distance,-displacement_distance, 0.0 ]),
+
+        # Face diagonals (xz-plane)
+        np.array([ displacement_distance, 0.0, displacement_distance ]),
+        np.array([-displacement_distance, 0.0, displacement_distance ]),
+        np.array([ displacement_distance, 0.0,-displacement_distance ]),
+        np.array([-displacement_distance, 0.0,-displacement_distance ]),
+
+        # Face diagonals (yz-plane)
+        np.array([ 0.0, displacement_distance, displacement_distance ]),
+        np.array([ 0.0,-displacement_distance, displacement_distance ]),
+        np.array([ 0.0, displacement_distance,-displacement_distance ]),
+        np.array([ 0.0,-displacement_distance,-displacement_distance ]),
+
+        # Body diagonals (full 3D diagonals)
+        np.array([ displacement_distance, displacement_distance, displacement_distance ]),
+        np.array([-displacement_distance, displacement_distance, displacement_distance ]),
+        np.array([ displacement_distance,-displacement_distance, displacement_distance ]),
+        np.array([-displacement_distance,-displacement_distance, displacement_distance ]),
+        np.array([ displacement_distance, displacement_distance,-displacement_distance ]),
+        np.array([-displacement_distance, displacement_distance,-displacement_distance ]),
+        np.array([ displacement_distance,-displacement_distance,-displacement_distance ]),
+        np.array([-displacement_distance,-displacement_distance,-displacement_distance ])
+    ]
+
+    def is_position_valid(atoms, position, min_distance, exclude_indices=None):
+        exclude_indices = exclude_indices or []
+        for idx, atom in enumerate(atoms):
+            if idx in exclude_indices:
+                continue
+            if np.linalg.norm(atom.position - position) < min_distance:
+                return False
+        return True
+
+    def try_displacements(target_indices, min_distance, attempts=100):
+        for _ in range(attempts):
+            central_atom = random.choice(target_indices)
             center_pos = atoms[central_atom].position
 
             for displacement in displacement_vectors:
-                new_position = center_pos + displacement
-
-                # Reject if too close to any atom (including itself)
-                if all(np.linalg.norm(atom.position - new_position) >= min_distance for atom in atoms):
-                    return new_position
+                candidate_pos = center_pos + displacement
+                if is_position_valid(atoms, candidate_pos, min_distance, exclude_indices=[host_index, bc_index]):
+                    return candidate_pos
         return None
 
-    # Step 1: Try placing near host's metal neighbors
+    # First attempt: place near host's metal neighbors
     metal_neighbors = get_nearest_neighbors(atoms, host_index, cutoff=cutoff)
     if metal_neighbors:
-        new_position = try_displacements(metal_neighbors)
-        if new_position is not None:
-            return new_position
+        position = try_displacements(metal_neighbors, default_min_distance)
+        if position is not None:
+            return position
 
-    # Step 2: Fallback — try placing near any metal atom
-    all_metals = [i for i, atom in enumerate(atoms) if atom.symbol not in interstitials+ignore and (freeze_threshold <= 0.0 or atom.position[2] > freeze_threshold)]
-    if all_metals:
-        new_position = try_displacements(all_metals)
-        if new_position is not None:
-            return new_position
+        # Relax criteria if initial placement fails
+        position = try_displacements(metal_neighbors, relaxed_min_distance)
+        if position is not None:
+            return position
 
-    # Step 3: If all else fails, return None
+    # If all attempts fail
     return None
 
 def shuffle_neighbor_types(system, local):
@@ -409,24 +442,12 @@ def calculate_energy_change(system, energy, swapped_pairs, move_type, run_MD, su
 
             system_copy[apair[0]].position, system_copy[apair[1]].position = p2, p1
 
-    elif move_type == 'translate':
-
-        for apair in swapped_pairs:
-
-            displacement = np.random.uniform(-0.5, 0.5, size=(1, 3))
-
-            p1 = system_copy[apair[0]].position.copy() + displacement
-            p2 = system_copy[apair[1]].position.copy() + displacement
-
-            system_copy[apair[0]].position, system_copy[apair[1]].position = p1, p2
-
     elif move_type == 'new_host':
 
         for apair in swapped_pairs:
 
             # introduce the B/C atom near the host
             p2 = place_near_host(system_copy, apair[0], apair[1])
-
             system_copy[apair[1]].position = p2
 
     elif move_type == 'shuffle':
