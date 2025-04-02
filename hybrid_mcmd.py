@@ -107,7 +107,7 @@ def hybrid_md_mc_routine(config):
         accepted = 0; rejected = 0
         steps_completed = 0
         save = 0
-        move_counts = {'swap': 0, 'new_host': 0, 'flip': 0, 'shuffle': 0, 'MD': 0}
+        move_counts = {'swap': 0, 'new_host': 0, 'swap_ints': 0, 'flip': 0, 'shuffle': 0, 'MD': 0}
 
     else:
         system = read('POSCAR-1', format='vasp')
