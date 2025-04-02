@@ -737,7 +737,10 @@ def add_sheet(surface, adsorbate, lattice):
         
         cell[2, 2] += vacuum_extension
         surface.set_cell(cell)
-
+    
+    if adsorbate.lower() == "none":
+        return surface
+    
     # Get x and y bounds from the cell with a slight margin to avoid edge effects
     x_min, x_max = np.min(positions[:, 0]) + (0.1 * cell[0][0]), np.max(positions[:, 0]) - (0.1 * cell[0][0])
     y_min, y_max = np.min(positions[:, 1]) + (0.1 * cell[1][1]), np.max(positions[:, 1]) - (0.1 * cell[1][1])
