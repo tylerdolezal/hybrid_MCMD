@@ -175,10 +175,10 @@ def place_near_host(atoms, host_index, bc_index, cutoff=2.75):
         return True
 
     def try_displacements(target_indices, min_distance, attempts=100):
+        random.shuffle(displacement_vectors)
         for _ in range(attempts):
             central_atom = random.choice(target_indices)
             center_pos = atoms[central_atom].position
-
             for displacement in displacement_vectors:
                 candidate_pos = center_pos + displacement
                 if is_position_valid(atoms, candidate_pos, min_distance, exclude_indices=[host_index, bc_index]):
@@ -410,7 +410,7 @@ def flip_atoms(system, metal_choices, supcomp_command):
 
     return system, delta_mu
 
-def update_move_list(surface):
+def update_move_list(surface, move_list):
     atoms = read("POSCAR")
     chemical_species = set(atoms.get_chemical_symbols())
     # if there are more than two species that correspond to interstitials, the move list should include swap_ints
@@ -418,8 +418,8 @@ def update_move_list(surface):
     if len(interstitial_species) > 1 and surface:
         return ['swap', 'new_host', 'swap_ints', 'shuffle']
     else:
-        return ['swap', 'new_host', 'new_host', 'shuffle']
-
+        return move_list
+    
 def add_new_species(atoms, counter):
 
     unique_species = set([atom.symbol for atom in atoms])
