@@ -110,7 +110,7 @@ Defines a set of metallic elements available for swapping or selection. If `None
 ```plaintext
 surface: None or a list of tuples [('O', 'hexagonal'), ...]
 ```
-Defines `adsorbate` and `surface geometry`. Set to `surface geometry` to `None` if adsorbate is already adsorbed. Set `surface` to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
+Defines `adsorbate` and `surface geometry`. Set `surface geometry` to `None` if adsorbate is already adsorbed. Set `surface` to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
 - [`('O', 'hexagonal')`]: A sheet of oxygen (`O`) placed above a hexagonal surface.
 - The logic accepts either `hexagonal` or `square`.
 **Important Notes:**
