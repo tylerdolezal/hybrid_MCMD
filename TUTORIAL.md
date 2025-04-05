@@ -113,6 +113,10 @@ surface: None or a list of tuples [('O', 'hexagonal'), ...]
 Defines `adsorbate` and `surface geometry`. Set to `surface geometry` to `None` if adsorbate is already adsorbed. Set `surface` to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
 - [`('O', 'hexagonal')`]: A sheet of oxygen (`O`) placed above a hexagonal surface.
 - The logic accepts either `hexagonal` or `square`.
+**Important Notes:**
+If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
+  - The height of the adsorbate sheet is determined using the van der Waals radius of the adsorbate and the metal elements present in the surface model.
+  - The spacing between adsorbates in the sheet is determined using the van der Waals radius of the adsorbates.
 
 ### Threshold for Freezing Atoms (keep 0.0 if not doing a surface study)
 ```plaintext
@@ -120,11 +124,6 @@ freeze_threshold: 0.0 or a float value in Å
 ```
 defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer. Example:
 - `freeze_threshold: 7.0`: atoms at and below z = 7 Å will be frozen.
-
-**Important Notes:**
-If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
-  - The height of the adsorbate sheet is determined using the van der Waals radius of the adsorbate and the metal elements present in the surface model.
-  - The spacing between adsorbates in the sheet is determined using the van der Waals radius of the adsorbates.
 
 ### Batch Mode
 The `batch_mode` setting allows users to iterate through compositions or to perform multiple simulations at a given composition:
