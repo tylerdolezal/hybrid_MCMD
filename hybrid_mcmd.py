@@ -37,7 +37,7 @@ def hybrid_md_mc_routine(config):
     # Validate input
     required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
                      'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
-                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'freeze_threshold','local_swap']
+                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'free_threshold','local_swap']
 
     for key in required_keys:
         if key not in config:
@@ -131,7 +131,7 @@ def hybrid_md_mc_routine(config):
     # Main simulation logic
     move_list = ['swap']
     metal_choices = config['metal_library']
-    if config['additives']:
+    if config['additives'] or config['surface']:
         move_list = ['swap', 'new_host', 'new_host', 'shuffle']
         if metal_choices:
             move_list =  move_list + ['flip']
@@ -330,7 +330,7 @@ def read_config_file():
                         config[key] = float(value)
                     except ValueError:
                         print(f"Warning: Could not parse freeze_threshold value: {value}")
-                        config[key] = 0.0
+                        config[key] = None
 
                 else:
                     config[key] = value
