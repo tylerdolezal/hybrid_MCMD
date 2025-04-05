@@ -1,5 +1,6 @@
 from ase.io import read, write
 import os
+import ast
 import numpy as np
 import pandas as pd
 import random
@@ -36,7 +37,7 @@ def hybrid_md_mc_routine(config):
     # Validate input
     required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
                      'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
-                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'local_swap']
+                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'freeze_threshold','local_swap']
 
     for key in required_keys:
         if key not in config:
@@ -51,9 +52,8 @@ def hybrid_md_mc_routine(config):
     lfun.update_md_input_file(config['md_params'])
 
     # set global freeze threshold based on the surface input
-    if config['surface']:
-        threshold = fun.set_global_threshold(config['surface'])
-        lfun.update_md_input_file(config['md_params'], threshold)
+    threshold = fun.set_global_threshold(config['freeze_threshold'])
+    lfun.update_md_input_file(config['md_params'], threshold)
         
     # update our list of interstitials based on the additives
     # and surface adsorbates
@@ -64,9 +64,11 @@ def hybrid_md_mc_routine(config):
         fun.set_interstitials(species)
 
     if config['surface']:
-        species = [config['surface'][0]]
-        if species[0].lower() != 'none':
-            fun.set_interstitials(species, surface=True)    
+        species = []
+        for dopant in config['surface']:
+            species.append(dopant[0])
+        
+        fun.set_interstitials(species, surface=True)    
     
     # switch to chgnet myfuncs if using chgnet
     if potential_type == 'chgnet':
@@ -310,17 +312,26 @@ def read_config_file():
                     if value.strip().lower() == "none":
                         config[key] = None
                     else:
-                        # Remove square brackets and strip whitespace
-                        cleaned_value = value.replace("[", "").replace("]", "").strip()
-                        
-                        # Split by commas, clean up entries
-                        parsed_values = [v.strip().strip("'").strip('"') for v in cleaned_value.split(',') if v.strip()]
+                        try:
+                            # Safely evaluate the list of tuples
+                            tuple_list = ast.literal_eval(value)
 
-                        # Convert last element to float or int if possible
-                        if parsed_values and parsed_values[-1].replace('.', '', 1).isdigit():
-                            parsed_values[-1] = float(parsed_values[-1])
-                        
-                        config[key] = parsed_values
+                            # Validate: must be list of 2-element tuples
+                            if isinstance(tuple_list, list) and all(isinstance(t, tuple) and len(t) == 2 for t in tuple_list):
+                                config[key] = tuple_list
+                            else:
+                                raise ValueError("Surface key must be a list of (element, geometry) tuples.")
+                        except Exception as e:
+                            print(f"Error parsing 'surface' value: {value}\n{e}")
+                            config[key] = None
+                
+                elif key == 'freeze_threshold':
+                    try:
+                        config[key] = float(value)
+                    except ValueError:
+                        print(f"Warning: Could not parse freeze_threshold value: {value}")
+                        config[key] = 0.0
+
                 else:
                     config[key] = value
     return config
