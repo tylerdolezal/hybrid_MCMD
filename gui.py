@@ -1,12 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+surface_check_var = False
+
 def update_randomize_visibility(*args):
     if grain_boundary_var.get():
         # Randomization
         randomize_label = tk.Label(frame, text="Randomize:").grid(row=2, column=2, sticky="w")
         tk.Checkbutton(frame, variable=randomize_var).grid(row=2, column=3, sticky="w")
-
 
 
 def update_hybrid_visibility(*args):
@@ -60,6 +61,8 @@ def generate_input_file():
             messagebox.showerror("Error", "input_file does not exist! Run without 'Continue Run' checked first.")
         return
     
+    if adsorbed_var.get():
+        messagebox.showinfo("Warning", f"Make sure to provide surface as: [(adsorbate, None)] for already adsorbed species.")
     # Define input file content
     md_params_value = f"0, {tsim_var.get()}, {md_potential_var.get()}" if not hybrid_run_var.get() else f"{md_steps_var.get()}, {md_temp_var.get()}, {md_potential_var.get()}"
     
@@ -79,11 +82,13 @@ def generate_input_file():
         "vacancies": vacancies_var.get(),
         "metal_library": metal_library_var.get(),
         "surface": surface_var.get(),
+        "freeeze_threshold": freeze_var.get(),
         "supcomp_command": supcomp_command_var.get()
     }
     
     # Clean up values before writing to file
     input_data = {key: clean_value(value) for key, value in input_data.items()}
+
     # Write to input_file in the same directory as the script
     with open(file_path, "w") as file:
         file.writelines(f"{key}: {value}\n" for key, value in input_data.items())
@@ -93,7 +98,7 @@ def generate_input_file():
         if not os.path.exists("POSCAR-gb"):
             messagebox.showerror("Error", "POSCAR-gb file not found! When using GB mode, please ensure the file exists in the working directory.")
             root.destroy()  # Close GUI
-            
+        
     root.destroy()  # Close GUI
     messagebox.showinfo("Success", f"input_file generated successfully!")
 
@@ -121,9 +126,11 @@ continue_run_var = tk.BooleanVar(value=False)
 additives_var = tk.StringVar(value="[()]")
 vacancies_var = tk.BooleanVar(value=False)
 metal_library_var = tk.StringVar(value="[]")
-surface_var = tk.StringVar(value="[]")
+surface_var = tk.StringVar(value="[()]")
+freeze_var = tk.StringVar(value="0.0")
 batch_mode_var = tk.StringVar(value="[]")
 local_swap_var = tk.BooleanVar(value=True)
+adsorbed_var = tk.BooleanVar(value=False)
 
 # Layout frame
 frame = tk.Frame(root)
@@ -145,13 +152,17 @@ tk.Checkbutton(frame, variable=grain_boundary_var, command=update_randomize_visi
 tk.Label(frame, text="Local Swap:").grid(row=1, column=2, sticky="w")
 tk.Checkbutton(frame, variable=local_swap_var).grid(row=1, column=3, sticky="w")
 
+tk.Label(frame, text="Already Adsorbed (surface only)?").grid(row=2, column=2, sticky="w")
+tk.Checkbutton(frame, variable=adsorbed_var).grid(row=2, column=3, sticky="w")
+
 preamble_fields = [
     ("Continue Run", continue_run_var, "Picking up where we left off?", "True or False"),
     ("Hybrid Run", hybrid_run_var, "Use MD in MCMD?", "True or False"),
     ("Vacancies", vacancies_var, "Place vacancies in the lattice?", "True or False"),
     ("Grain Boundary", grain_boundary_var, "Using a predefined grain boundary cell?", "True or False"),
     ("Randomize", randomize_var, "Shuffle chemical symbols based on composition?", "True or False"),
-    ("Local Swap", local_swap_var, "Swap metals locally?", "True or False")]
+    ("Local Swap", local_swap_var, "Swap metals locally?", "True or False"),
+    ("Adsorbed?", adsorbed_var, "Adsrobate already relaxed?", "True or False")]
 
 # MD Parameters
 md_params_label = tk.Label(root, text="MD Parameters:")
@@ -172,7 +183,8 @@ fields = [
     ("MC Steps", num_mc_steps_var, "Number of Monte Carlo steps", "6000"),
     ("Additives", additives_var, "Dopants or interstitials added to the system", "[(Cr, B, 9), (None, B, 9), etc] or None"),
     ("Batch Mode", batch_mode_var, "Iterate compositions for multiple simulations", "[0.01, 0.02, etc] or None"),
-    ("Surface", surface_var, "Define adsorbate, surface type, freeze threshold", "[O, hexagonal, 7.0] or None"),
+    ("Surface", surface_var, "Define adsorbate(s) and surface geometry", "[(O, hexagonal), ...] or None"),
+    ("Freeze Threshold", freeze_var, "Define z-coordinate freeze threshold (Å)", "0.0 or float value"),
     ("Metal Library", metal_library_var, "Available elements for swapping/selection", "[Cr, Fe, Mo, etc] or None"),
     ("Execution Command", supcomp_command_var, "Command to execute LAMMPS", "lmp_serial"),
 ]
