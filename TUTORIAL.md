@@ -78,7 +78,7 @@ Indicates whether the simulation should resume from a previous run.
 
 ### Additives (Dopants)
 ```plaintext
-additives: None or a list [(Cr, B, 9), ...]
+additives: None or a list of tuples [(Cr, B, 9), ...]
 ```
 
 For undoped simulations, set to `None`. Otherwise, specify a list of host-dopant pairs. Examples include:
@@ -108,11 +108,18 @@ Defines a set of metallic elements available for swapping or selection. If `None
 
 ### Surface Properties
 ```plaintext
-surface: None or a list [O, hexagonal, 7.0]
+surface: None or a list of tuples [('O', hexagonal), ...]
 ```
-Defines surface conditions. Set to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
-- `O, hexagonal, 7.0`: A sheet of oxygen (`O`) placed above a hexagonal surface where **7.0 Å** defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer (e.g., atoms at and below 7 Å will be frozen).
+Defines `adsorbate` and `surface geometry`. Set to `surface geometry` to `None` if adsorbate is already adsorbed. Set `surface` to `None` if interstitial adsorption and inward diffusion is not being studied. Example:
+- [`('O', 'hexagonal')`]: A sheet of oxygen (`O`) placed above a hexagonal surface.
 - The logic accepts either `hexagonal` or `square`.
+
+### Threshold for Freezing Atoms (keep 0.0 if not doing a surface study)
+```plaintext
+freeze_threshold: 0.0 or a float value in Å
+```
+defines the upper limit allowed for the z-coordinate of atoms to use in applying a frozen substrate layer. Example:
+- `freeze_threshold: 7.0`: atoms at and below z = 7 Å will be frozen.
 
 **Important Notes:**
 If the provided simulation cell does not contain a vacuum in the z direction, a 50 Å vacuum will automatically be added before introducing the sheet of adsorbates to the surface model. 
