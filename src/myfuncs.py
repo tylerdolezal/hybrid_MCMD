@@ -36,15 +36,11 @@ common_structures = {
 # Global freeze_threshold (default to no freezing)
 freeze_threshold = 0.0
 
-def set_global_threshold(surface):
+def set_global_threshold(threshold):
     """Sets the global freeze_threshold based on the surface configuration."""
     global freeze_threshold  # Declare global before modifying it
 
-    if surface and isinstance(surface, list) and len(surface) > 2:
-        freeze_threshold = float(surface[2])  # Extract height value safely
-    else:
-        freeze_threshold = 0.0  # Default: No freezing
-    
+    freeze_threshold = threshold  # Extract height value safely
 
     print(f"Global freeze_threshold set to: {freeze_threshold}")
     return freeze_threshold
@@ -414,7 +410,7 @@ def update_move_list(surface, move_list):
     atoms = read("POSCAR")
     chemical_species = set(atoms.get_chemical_symbols())
     # if there are more than two species that correspond to interstitials, the move list should include swap_ints
-    interstitial_species = [x for x in interstitials if x in chemical_species]
+    interstitial_species = [x for x in surface_interstitials if x in chemical_species]
     if len(interstitial_species) > 1 and surface:
         return ['swap', 'new_host', 'swap_ints', 'shuffle']
     else:
@@ -738,7 +734,8 @@ def add_sheet(surface, adsorbate, lattice):
         cell[2, 2] += vacuum_extension
         surface.set_cell(cell)
     
-    if adsorbate.lower() == "none":
+    if not lattice:
+        print(f"Skipping addition of {adsorbate} — already present.")
         return surface
     
     # Get x and y bounds from the cell with a slight margin to avoid edge effects
@@ -923,9 +920,6 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
                 for index, symbol in zip(zone_indices, zone_symbols):
                     atoms[index].symbol = symbol
 
-    if surface:
-        atoms = add_sheet(atoms, surface[0], surface[1])
-
     if additives:
         place_additives_nearby(atoms, additives, surface, grain_boundary)
 
@@ -933,20 +927,24 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
         atoms = AtomsWithVacancies(symbols=atoms.get_chemical_symbols(), positions=atoms.get_positions(), cell=atoms.get_cell())
         atoms.introduce_vacancies()
 
+    if surface:
+        for a_surface in surface:
+            # Add the surface layer
+            atoms = add_sheet(atoms, a_surface[0], a_surface[1])
 
-    # this way, the modfiles can be updated properly
-    write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
-    write("POSCAR", atoms, format='vasp', direct=True, sort=True)
-    # update modfiles for the relaxations and md runs
-    fun.update_modfiles(md_params)
+            # this way, the modfiles can be updated properly
+            write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
+            write("POSCAR", atoms, format='vasp', direct=True, sort=True)
+            # update modfiles for the relaxations and md runs
+            fun.update_modfiles(md_params)
 
-    atoms, _ = initial_relax(atoms, supcomp_command)
+            atoms, _ = initial_relax(atoms, supcomp_command)
 
-    # save the relaxed structure as our initial structure
-    write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
+            # save the relaxed structure as our initial structure
+            write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
 
-    # save the relaxed structure as current structure
-    write("POSCAR-1", atoms, format='vasp', direct=True, sort=True)
+            # save the relaxed structure as current structure
+            write("POSCAR-1", atoms, format='vasp', direct=True, sort=True)
 
     return(atoms)
 
