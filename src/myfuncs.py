@@ -945,6 +945,22 @@ def initialize_system(composition, grain_boundary, supcomp_command, md_params, a
 
             # save the relaxed structure as current structure
             write("POSCAR-1", atoms, format='vasp', direct=True, sort=True)
+    
+    else:
+
+        # this way, the modfiles can be updated properly
+        write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
+        write("POSCAR", atoms, format='vasp', direct=True, sort=True)
+        # update modfiles for the relaxations and md runs
+        fun.update_modfiles(md_params)
+
+        atoms, _ = initial_relax(atoms, supcomp_command)
+
+        # save the relaxed structure as our initial structure
+        write("POSCAR-0", atoms, format='vasp', direct=True, sort=True)
+
+        # save the relaxed structure as current structure
+        write("POSCAR-1", atoms, format='vasp', direct=True, sort=True)
 
     return(atoms)
 
