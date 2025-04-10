@@ -543,7 +543,6 @@ def place_additives_nearby(in625_supercell, additives, surface, GB):
         Natoms = len(in625_supercell)
         # Randomly select positions in the supercell to replace with TiB2
         # Get valid atom indices
-        z_length = in625_supercell.get_cell()[2,2]
 
         # Start with all valid indices, excluding pre-existing interstitials
         non_frozen_indices = [
@@ -556,14 +555,13 @@ def place_additives_nearby(in625_supercell, additives, surface, GB):
             ]
 
         # Further refine to avoid placement near the free surface
-        if surface:
-            # Get the maximum z-coordinate of metal atoms only
-            max_metal_z = max(
-                [in625_supercell[i].position[2] for i in range(Natoms) if in625_supercell[i].symbol not in interstitials + ignore]
-                )
-            non_frozen_indices = [
-                i for i in non_frozen_indices if in625_supercell[i].position[2] < (max_metal_z - freeze_threshold)
-                ]
+        # Get the maximum z-coordinate of metal atoms only
+        max_metal_z = max(
+            [in625_supercell[i].position[2] for i in range(Natoms) if in625_supercell[i].symbol not in interstitials + ignore]
+            )
+        non_frozen_indices = [
+            i for i in non_frozen_indices if in625_supercell[i].position[2] < (max_metal_z - freeze_threshold)
+            ]
         # Further refine to avoid placement near the GB
         '''
         I need to update the GB inputs to account for the min, max cuttoff logic
