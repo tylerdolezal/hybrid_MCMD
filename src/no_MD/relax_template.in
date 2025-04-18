@@ -23,13 +23,6 @@ if "${freeze_threshold} > 0.0" then &
   "fix freeze frozen_atoms setforce 0.0 0.0 0.0" &
   "velocity frozen_atoms set 0.0 0.0 0.0"
 
-fix 1 all box/relax iso 0.0
-
-# Perform relaxation
-min_style cg
-minimize 1e-12 1e-12 15000 15000
-
-unfix 1
 
 # Perform relaxation
 min_style cg

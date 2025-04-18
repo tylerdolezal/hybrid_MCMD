@@ -27,13 +27,13 @@ fix 1 all box/relax iso 0.0
 
 # Perform relaxation
 min_style cg
-minimize 1e-10 1e-10 15000 15000
+minimize 1e-12 1e-2 15000 15000
 
 unfix 1
 
 # Perform relaxation
 min_style cg
-minimize 1e-10 1e-10 15000 15000
+minimize 1e-12 1e-2 15000 15000
 
 variable etotal equal pe
 print "${etotal}" file energy.txt

@@ -12,14 +12,14 @@ include src/potential.mod
 thermo 100
 thermo_style custom step temp pe ke etotal press vol
 
-velocity all create TEMP_INIT 4928459 rot yes dist gaussian
-
 # Define a region for frozen atoms
 variable freeze_threshold equal FREEZE_THRESHOLD
-region freeze_region block INF INF INF INF 0.0 ${freeze_threshold}
+variable zlo equal bound(all,zmin)
+region freeze_region block INF INF INF INF ${zlo} $(v_zlo+v_freeze_threshold)
 
 # Assign frozen atoms to the group
 group frozen_atoms region freeze_region
+group mobile subtract all frozen_atoms
 
 # Apply freezing constraints only if freeze_threshold > 0
 if "${freeze_threshold} > 0.0" then &
@@ -28,11 +28,9 @@ if "${freeze_threshold} > 0.0" then &
 
 # Define the thermostat and barostat settings (Nose-Hoover thermostat and barostat)
 variable dt equal 0.001  # Timestep in picoseconds
-compute PE all pe
 # Nose-Hoover NPT ensemble for temperature and pressure control
-fix 1 all nvt temp TEMP_INIT TEMP_FINAL $(100.0*dt)
-
-fix avePE all ave/time 1 200 200 c_PE ave one
+velocity mobile create TEMP_INIT 4928459 rot yes dist gaussian
+fix 1 mobile nvt temp TEMP_INIT TEMP_FINAL $(100.0*dt)
 
 timestep 0.001
 
