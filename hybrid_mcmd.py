@@ -37,7 +37,7 @@ def hybrid_md_mc_routine(config):
     # Validate input
     required_keys = ['composition', 'crystal_shape', 'grain_boundary', 'randomize', 'md_params',
                      'num_mc_steps', 'md_interval', 'size', 'supcomp_command',
-                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'free_threshold','local_swap']
+                     'continue_run', 'additives', 'vacancies', 'metal_library', 'surface', 'freeze_threshold','local_swap']
 
     for key in required_keys:
         if key not in config:
