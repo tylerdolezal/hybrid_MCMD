@@ -1,0 +1,45 @@
+simulation:
+  num_mc_steps: 20000
+  temperature: 300        # Global temperature for MC acceptance and MD thermostat
+  snapshot_every: 200
+  continue_run: False
+  potential_style: "pfp" # Options: pfp, chgnet, eam
+  
+  # Explicit control over the MD portion of the hybrid routine
+  hybrid_md:
+    enabled: True         
+    interval: 2000          # MC steps between MD calls
+    steps: 20000              # Number of MD steps per call
+
+system:
+  # Construction Logic
+  use_custom_cell: True   # If True, looks for 'POSCAR-custom'
+  composition: {Ni: 0.75, Cr: 0.25}
+  crystal_shape: "fcc"     # Options: fcc, bcc, hcp
+  supercell_size: [8, 8, 8] 
+  randomize_initial: True  # Scramble symbols at start
+
+ensembles:
+  # 1. Canonical (Fixed N, V, T) - Always active for diffusion/swaps
+  canonical:
+    enabled: True
+
+  # 2. Semi-Grand Canonical (Fixed Δμ, V, T) - For metal identity flips
+  semi_grand:
+    enabled: True      
+    metal_library: ["Cr", "Ni"]
+    delta_mu: 0.936 # filename or float value
+
+  # 3. Grand Canonical (Fixed μ, V, T) - For interstitial insertion/deletion
+  grand:
+    enabled: False
+    voids_file: "voids-POSCAR-S5" # Moved here from system
+    additives:
+      B: { base_mu: -6.46, c_target: 1e-4 }
+      C: { base_mu: -7.51, c_target: 1e-3 }
+
+spectral:
+  enabled: False            # If True, main.py launches SpectralCollector
+  do_neb: True             # Calculate diffusion barriers
+  jump_cutoff: 2.15         # Max distance for a valid diffusion hop
+  solute: "Cr"             # Element used for decoration shell
