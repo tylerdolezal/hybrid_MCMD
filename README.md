@@ -1,49 +1,52 @@
-# Hybrid Monte Carlo Molecular Dynamics (hMCMD) Routine
+# Hybrid MC/MD Simulation & Spectral Mapping Tool
 
-## Overview
-The **Hybrid MCMD Routine** is designed to run Monte Carlo (MC) and Molecular Dynamics (MD) simulations in a hybrid fashion to explore material behaviors under various doping conditions. The routine allows for automated execution, statistical data collection, and efficient handling of simulation parameters. As a reminder the catalogue of MC moves are:
+This framework is designed for exploring the thermodynamics and kinetics of interstitials in complex environments (e.g., grain boundaries, surfaces, and bulk alloys). It integrates stochastic Monte Carlo (MC) sampling with molecular dynamics (MD) relaxations and systematic energy mapping using high-fidelity potentials like **PFP**, **CHGNet**, or **EAM**.
 
-- **Swap atomic positions of metallic constituents:** Select two metallic atoms of different chemical types and attempt to swap their positions within the lattice.
-- **Relocate a light interstitial atom near a new metallic host:** Select a light interstitial atom and attempt to place it near a different metallic atom within its nearest neighbor shell.
-- **Introduce proximity between two light interstitial atoms:** Select two light interstitial atoms and attempt to place one of them within the first nearest neighbor shell of the other. If the first shell is fully occupied, the placement is attempted in the second nearest neighbor shell.
-- **Separate two neighboring light interstitial atoms:** If a pair of neighboring light interstitials exists, select one and attempt to move it away from its nearest interstitial neighbor. This move balances the proximity adjustment, ensuring an opportunity to promote both segregation and aggregation of light interstitials.
-- **Swap a metal neighbor of a light interstitial atom:** For a selected light interstitial atom, identify one of its nearest metallic neighbors and swap its position with that of another metal atom of a different chemical type.
-- **Swap two dissimilar light interstitial atoms:** If two different types of light interstitials are present, select a pair of dissimilar interstitial atoms in the nearest neighbor shell and attempt to exchange their positions. This move enables local chemical rearrangements and competition for binding environments. _Only enabled for systems with chemically diverse light interstitials and a surface_.
+## 🚀 Core Functionalities
 
-## File Descriptions
+### 1. Hybrid MC/MD Simulation
+Performs random-walk sampling of atomic configurations to reach thermodynamic equilibrium:
+* **Canonical Ensemble**: Position swaps for metal atoms and host-to-host diffusion for interstitials.
+* **Semi-Grand Canonical**: Metal species identity flips (e.g., $Ni \leftrightarrow Cr$) based on chemical potential differences ($\Delta\mu$).
+* **Grand Canonical**: Stochastic insertion and deletion of interstitial species (e.g., B, C, N, O) based on target concentrations ($c_{target}$) and reservoir potentials.
 
-### Main Execution Files
-- **`gui.py`** – GUI to help assist in setting user-defined settings for the simulation. Automatically writes the input_file from given parameters.
-- **`input_file`** – User-defined settings for the simulation, including temperature, atomic species, dopant concentrations, and MC/MD parameters.
-- **`execute.py`** – A script to iterate through multiple dopant concentrations or run multiple undoped simulations for statistical analysis.
-- **`(p) execute.py`** – A parallelized version of `execute.py` for efficient multi-run execution.
-- **`hybrid_mcmd.py`** – The core algorithm implementing hybrid Monte Carlo and Molecular Dynamics execution.
+### 2. Spectral Mapping & NEB
+A systematic mode for mapping the energy landscape of a single interstitial through a specific diffusion network:
+* **Random Walk Diffusion**: Moves an interstitial between neighboring sites identified in a `voids_file`.
+* **Deterministic Decoration**: Systematically replaces the nearest metal neighbors of the interstitial with a solute (e.g., $Cr$) to measure alloying effects.
+* **Kinetic Barriers**: Automatically calculates forward ($dE_f$) and reverse ($dE_r$) activation barriers using the Nudged Elastic Band (NEB) method.
 
-### Supporting Source Files
-- **`potential.mod`** – Essential file automatically updated by the routine based on the alphabetized species found in the POSCAR files.
-- **`structure.mod`** – Reads in POSCAR files for LAMMPS simulations.
-- **`hybrid_md_routine.py`** – Runs MD simulations if the hybrid setting is enabled.
-- **`lammps_functions.py`** – Automates the creation and modification of LAMMPS input files.
-- **`myfuncs.py`** – A collection of functions used within `hybrid_mcmd.py` to streamline computations.
-- **`no_MD/`** – Directory for pure Monte Carlo runs (no MD involved).
-- **`w_MD/`** – Directory for hybrid Monte Carlo-Molecular Dynamics runs.
-- **`chgnet_src/`** – Contains an edited version of `myfuncs.py` modified to run with CHGNet and ASE instead of LAMMPS.
-
-## Usage Instructions
-1. Modify `input_file` with `gui.py` or manually to specify the simulation parameters. Please see `TUTORIAL.md` for a complete description of this input file.
-2. Run `execute.py` or `(p) execute.py` depending on whether a sequential or parallel execution is needed to iterate over a range of compositions or multiple simulation runs.
-3. Results will be stored in the data and structures directories and in `Alloy_X{at%}_run{iteration}` if `batch_mode` is used.
-4. Analyze output data for insights on material behavior.
-
-## Dependencies
-Ensure the following are installed:
-- **LAMMPS**
-- **ASE** 
-- **Python 3**
-- **CHGNet** (if using this potential style)
 ---
-This repository is actively maintained and updated to improve efficiency and accuracy in hybrid MCMD simulations. Contributions and suggestions are welcome! To help improve the code, please consider running the routine with:  
 
-`python3 execute.py 2> error.log`
+## 🛠 Directory Structure
 
-This will capture errors separately, making it easier to track and resolve any issues.
+* `main.py`: The primary entry point. Handles mode dispatching.
+* `core/simulation.py`: Contains the logic for `HybridSimulation` and the `SpectralCollector` subclass.
+* `core/thermo.py`: Logic for relaxations, NEB image generation, and local environment decoration.
+* `drivers/`: Potential-specific wrappers (e.g., `pfp_driver.py`) that return ASE-compatible calculators.
+* `utils/`: Configuration parsing, standard I/O, and dual-output logging.
+* `data/`: Output directory for `spectral_log.csv` and NEB trajectory data.
+
+---
+
+## 📝 Configuration (`config.yaml`)
+
+The tool uses a nested YAML structure. For **Spectral Mode**, ensure the following parameters are set:
+
+```yaml
+spectral:
+  enabled: True            # Toggle systematic mapping vs. random simulation
+  do_neb: True             # Enable activation barrier calculations
+  jump_cutoff: 3.5         # Max distance (Å) for a valid diffusion hop
+  solute: "Cr"             # Solute used for deterministic decoration shell
+  nn_cutoff: 3.8           # Shell radius for counting solute neighbors
+
+system:
+  use_custom_cell: True    # Required: Loads 'POSCAR-custom'
+
+ensembles:
+  grand:
+    enabled: True          # Must be True to provide species and void data
+    voids_file: "gb_voids-POSCAR-S5" 
+    additives:
+      B: { base_mu: -6.46 } # Species to be mapped
