@@ -23,9 +23,10 @@ A systematic mode for mapping the energy landscape of a single interstitial thro
 * `main.py`: The primary entry point. Handles mode dispatching.
 * `core/simulation.py`: Contains the logic for `HybridSimulation` and the `SpectralCollector` subclass.
 * `core/thermo.py`: Logic for relaxations, NEB image generation, and local environment decoration.
+* `core/moves.py`: Logic for executing the various MC moves. 
 * `drivers/`: Potential-specific wrappers (e.g., `pfp_driver.py`) that return ASE-compatible calculators.
 * `utils/`: Configuration parsing, standard I/O, and dual-output logging.
-* `data/`: Output directory for `spectral_log.csv` and NEB trajectory data.
+* `data/`: Output directory for MC-MD data, `spectral_log.csv`, and NEB trajectory data.
 
 ---
 
@@ -34,12 +35,24 @@ A systematic mode for mapping the energy landscape of a single interstitial thro
 The tool uses a nested YAML structure. For **Spectral Mode**, ensure the following parameters are set:
 
 ```yaml
+simulation:
+  num_mc_steps: 35000
+  temperature: 1200        # Global temperature for MC acceptance and MD thermostat
+  snapshot_every: 200
+  continue_run: False
+  potential_style: "pfp" # Options: pfp, chgnet, eam
+  
+  # Explicit control over the MD portion of the hybrid routine
+  hybrid_md:
+    enabled: False         
+    interval: 500          # MC steps between MD calls
+    steps: 200              # Number of MD steps per call
+    
 spectral:
   enabled: True            # Toggle systematic mapping vs. random simulation
   do_neb: True             # Enable activation barrier calculations
-  jump_cutoff: 3.5         # Max distance (Å) for a valid diffusion hop
+  jump_cutoff: 2.75         # Max distance (Å) for a valid diffusion hop
   solute: "Cr"             # Solute used for deterministic decoration shell
-  nn_cutoff: 3.8           # Shell radius for counting solute neighbors
 
 system:
   use_custom_cell: True    # Required: Loads 'POSCAR-custom'
