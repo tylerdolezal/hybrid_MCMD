@@ -18,8 +18,8 @@ class MoveSelector:
 
     def get_adaptive_weights(self, atoms, stats):
         """
-        Allocates weights by grouping moves into active ensembles and 
-        balancing based on system state (N_B, diversity).
+        Allocates equal weights to all moves that are both enabled 
+        in the configuration and valid for the current system state.
         """
         try:
             symbols = atoms.get_chemical_symbols()
@@ -28,72 +28,42 @@ class MoveSelector:
 
         # 1. System state analysis
         N_B = sum(symbols.count(sym) for sym in self.interstitials)
-        metal_symbols = set([sym for sym in symbols if sym not in self.interstitials])
-        diverse_metal = len(metal_symbols) > 1
+        metal_symbols = [sym for sym in symbols if sym not in self.interstitials]
+        diverse_metal = len(set(metal_symbols)) > 1
         diverse_ints = len(set([sym for sym in symbols if sym in self.interstitials])) > 1
         
         ens_config = self.config['ensembles']
-        
-        # 2. Define moves belonging to each ensemble
-        ensemble_map = {
-            'semi_grand': ['flip'],
-            'grand': ['insert', 'delete'],
-            'canonical': ['swap', 'new_host', 'shuffle', 'swap_ints']
-        }
+        active_moves = []
 
-        # 3. Determine active ensembles
-        active_ensembles = [e for e in ensemble_map if ens_config[e].get('enabled', False)]
-        if not active_ensembles:
-            return [0.0] * 7 # Safety fallback
+        # 2. Check validity for each move type
+        # Semi-grand Ensemble
+        if ens_config['semi_grand'].get('enabled', False):
+            active_moves.append('flip')
 
-        # 4. Allocate weights ONLY to active ensembles
-        # We start by giving each active ensemble an equal slice of the 1.0 pool
-        share = 1.0 / len(active_ensembles)
+        # Grand Canonical Ensemble
+        if ens_config['grand'].get('enabled', False):
+            active_moves.append('insert')
+            if N_B > 0:
+                active_moves.append('delete')
+
+        # Canonical Ensemble
+        if ens_config['canonical'].get('enabled', False):
+            if diverse_metal:
+                active_moves.append('swap')
+            if N_B > 0:
+                active_moves.extend(['new_host', 'shuffle'])
+                if diverse_ints:
+                    active_moves.append('swap_ints')
+
+        # 3. Calculate equal weights
         weights = {m: 0.0 for m in ['flip', 'insert', 'delete', 'swap', 'new_host', 'shuffle', 'swap_ints']}
-
-        for e in active_ensembles:
-            moves = ensemble_map[e]
-            
-            if e == 'semi_grand':
-                weights['flip'] = share
-
-            elif e == 'grand':
-                # Balance insert/delete based on presence of interstitials
-                if N_B == 0:
-                    weights['insert'], weights['delete'] = share, 0.0
-                else:
-                    weights['insert'], weights['delete'] = share * 0.5, share * 0.5
-
-            elif e == 'canonical':
-                # Smartly distribute the canonical share based on what is useful
-                c_moves = []
-                if diverse_metal: c_moves.append('swap')
-                if N_B > 0: 
-                    c_moves.extend(['new_host', 'shuffle'])
-                    if diverse_ints: c_moves.append('swap_ints')
-                
-                if c_moves:
-                    sub_share = share / len(c_moves)
-                    for m in c_moves: weights[m] = sub_share
-                else:
-                    # If canonical is on but no moves are valid (e.g. pure metal, no N_B)
-                    # re-distribute this share to other active ensembles later or zero it
-                    weights['swap'] = share # Fallback to swap if nothing else
-
-        # 5. Apply acceptance-rate scaling (Optional but recommended)
-        neutral_mark = 0.30
-        acc, rej = stats['accepted'], stats['rejected']
-        for m in weights:
-            if weights[m] == 0.0: continue
-            total = acc.get(m, 0) + rej.get(m, 0)
-            if total > 100: # Only scale after some data is gathered
-                scale = min(max(0.2, (acc.get(m, 0)/total) / neutral_mark), 2.0)
-                weights[m] *= scale
-
-        # 6. Normalize and return
-        total_w = sum(weights.values())
-        if total_w == 0: return [0.0] * 7
         
+        if active_moves:
+            equal_weight = 1.0 / len(active_moves)
+            for move in active_moves:
+                weights[move] = equal_weight
+
+        # 4. Return ordered list
         return [
             weights['flip'], weights['insert'], weights['delete'],
             weights['swap'], weights['new_host'], weights['shuffle'],
