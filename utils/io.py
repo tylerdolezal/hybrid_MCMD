@@ -90,7 +90,6 @@ def parse_mc_statistics(file_path='data/MonteCarloStatistics'):
     """
     accepted_counts = {}
     rejected_counts = {}
-    save = accepted = rejected = steps_completed = 0
     current_section = None
 
     move_key_map = {
@@ -125,6 +124,10 @@ def parse_mc_statistics(file_path='data/MonteCarloStatistics'):
 
                 if key == 'Steps Completed':
                     steps_completed = int(value)
+                elif key == 'Acceptance %':
+                    acceptance_pct = value
+                elif key == 'Rejection %':
+                    rejection_pct = value
                 elif key == 'Steps for MD':
                     save = int(value)
                 elif key in move_key_map:
@@ -134,7 +137,14 @@ def parse_mc_statistics(file_path='data/MonteCarloStatistics'):
                     elif current_section == 'rejected':
                         rejected_counts[move] = int(value)
 
+    # Calculate total counts from percentages
+    # Formula: (Percentage / 100) * Total Steps
+    accepted = int(round((acceptance_pct / 100.0) * steps_completed))
+    rejected = int(round((rejection_pct / 100.0) * steps_completed))
+
     return {
+        'accepted': accepted,
+        'rejected': rejected,
         'steps_completed': steps_completed,
         'md_step_counter': save,
         'accepted_counts': accepted_counts,

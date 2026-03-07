@@ -19,7 +19,7 @@ class HybridSimulation:
         self.accepted = 0
         self.rejected = 0
         self.temp = self.config['simulation']['temperature']
-        self.is_spectral = config.get('spectral', {}).get('enabled', False)
+        self.is_spectral = config['spectral'].get('enabled', False)
         
         # 1. Dynamically load the potential driver (PFP, CHGNet, or EAM)
         self.calculator = self._init_driver()
@@ -72,7 +72,7 @@ class HybridSimulation:
 
     def _init_driver(self):
         """Loads the specific potential driver."""
-        style = self.config.get('potential_style', 'pfp').lower()
+        style = self.config['simulation'].get('potential_style', 'pfp').lower()
         try:
             driver_module = importlib.import_module(f"drivers.{style}_driver")
             return driver_module.get_calculator()
@@ -89,10 +89,13 @@ class HybridSimulation:
             atoms = read("POSCAR-custom", format="vasp")
             return atoms, [0.0, 0.0]
 
-        if self.config.get('continue_run'):
+        if self.config['simulation']['continue_run']:
             atoms = read('POSCAR-1', format='vasp')
             energies = list(np.loadtxt('data/energies'))
             stats = io.parse_mc_statistics()
+            self.md_step_counter = stats['md_step_counter']
+            self.accepted = stats['accepted']
+            self.rejected = stats['rejected']
             self.mc_step = stats['steps_completed']
             self.move_stats['accepted'] = stats['accepted_counts']
             self.move_stats['rejected'] = stats['rejected_counts']
@@ -119,6 +122,8 @@ class HybridSimulation:
 
             if step % self.config['simulation'].get('snapshot_every', 200) == 0:
                 io.save_snapshot(self)
+            
+            io.write_mc_statistics(self)
 
     def execute_mc_step(self):
         """Evaluates a Metropolis move using cached mu values."""
@@ -136,6 +141,8 @@ class HybridSimulation:
         
         if random.random() < prob:
             self.atoms = new_atoms
+            # save current POSCAR for restart capability 
+            write("POSCAR-1", new_atoms, format='vasp', direct=True, sort=True)
             self.energies.append(new_energy)
             self.move_stats['accepted'][move_type] += 1
             self.accepted += 1

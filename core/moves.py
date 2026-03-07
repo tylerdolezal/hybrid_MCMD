@@ -86,7 +86,7 @@ class MoveSelector:
         for m in weights:
             if weights[m] == 0.0: continue
             total = acc.get(m, 0) + rej.get(m, 0)
-            if total > 50: # Only scale after some data is gathered
+            if total > 100: # Only scale after some data is gathered
                 scale = min(max(0.2, (acc.get(m, 0)/total) / neutral_mark), 2.0)
                 weights[m] *= scale
 
