@@ -181,7 +181,7 @@ def relax_config(system, move_type, calculator):
     qn.run(fmax=0.05, steps=30)
 
     dyn = FIRE(system, logfile=log)
-    dyn.run(fmax=0.05, steps=50)
+    dyn.run(fmax=0.05, steps=250)
     return system, system.get_potential_energy()
 
 def place_near_host(atoms, host_index, bc_index):
