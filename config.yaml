@@ -46,3 +46,4 @@ spectral:
   diff_solute: "B"         # Diffusing element
   n_solute: 0              # Number to decorate up to
   n_images: 8              # Number of images to generate for NEB
+  r_freeze: 12.0           # Radius to freeze for NEB (set to 0.0 for no freeze)

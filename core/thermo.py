@@ -312,12 +312,14 @@ def run_md(atoms, calculator, temp, steps):
     
     return atoms, atoms.get_potential_energy()
 
-
+from scipy.interpolate import CubicSpline
+from ase.constraints import FixAtoms
+from scipy.signal import find_peaks
 from ase.mep import NEB, NEBTools
 import matplotlib.pyplot as plt
 import logging
 
-def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, n_images=8):
+def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, step, n_images=8, radius=None):
     """
     NEB wrapper using a 3-point guided interpolation (Start -> Saddle -> End).
     Dynamically identifies the interstitial atom by its symbol.
@@ -342,6 +344,23 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, n_image
     
     idx = indices[0]
 
+    if radius is not None:
+        # Get distances from the interstitial to all other atoms
+        # mic=True accounts for Periodic Boundary Conditions
+        dist_to_interstitial = atoms_0.get_distances(idx, range(len(atoms_0)), mic=True)
+        
+        # Identify atoms to freeze: those further than 'radius' AND not the interstitial itself
+        fixed_indices = [
+            i for i, dist in enumerate(dist_to_interstitial) 
+            if dist > radius and i != idx
+        ]
+        
+        constraint = FixAtoms(indices=fixed_indices)
+        logging.info(f"Freezing {len(fixed_indices)} atoms outside {radius} Å radius.")
+    else:
+        constraint = None
+        logging.info("No freeze radius provided. All atoms are mobile.")
+
     # 2. Setup n_images images (initial, 6 intermediate, final)
     images = [atoms_0.copy()]
     for _ in range(n_images - 2):
@@ -365,6 +384,10 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, n_image
     # Assign unique calculators to each image to prevent state conflicts
     for img in images:
         img.calc = calculator_setup_func()
+        if constraint is not None:
+            # We use .copy() or re-initialize to ensure each image 
+            # has its own constraint object instance
+            img.set_constraint(constraint.copy())
 
     # 5. Run Optimization
     qn = MDMin(neb, dt=0.02, logfile=neb_log)
@@ -382,8 +405,68 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, n_image
 
     dEr = dEf - (Ef - E0)
 
-    fig = nebtools.plot_band()
-    fig.savefig(f'data/neb/MEP.png', bbox_inches='tight')
-    plt.close(fig)
+    # 7. MEP analysis
+
+    # 7a. Get energies relative to the initial state
+    energies = [img.get_potential_energy() for img in images]
+    energies = np.array(energies) - energies[0]
+
+    # 7b. Calculate cumulative distance (Reaction Coordinate)
+    distances = [0.0]
+    for i in range(len(images) - 1):
+        # Calculate RMS distance between image i and i+1
+        d = np.linalg.norm(images[i+1].get_positions() - images[i].get_positions())
+        distances.append(distances[-1] + d)
+    distances = np.array(distances)
+
+    # Find peaks (local maxima) in the energy profile
+    # 'height=0' ensures we only look at positive barriers
+    peaks, properties = find_peaks(energies, height=0.01) 
+
+    if len(peaks) > 1:
+        # Create a folder for this event
+        folder_name = f'data/neb/neb_event_{step}'
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+        
+        # Save the MEP Plot
+        # Create a smooth curve (100 points) from the discrete images
+        cs = CubicSpline(distances, energies, bc_type='natural')
+        x_smooth = np.linspace(distances[0], distances[-1], 100)
+        y_smooth = cs(x_smooth)
+
+        plt.figure(figsize=(5, 3))
+        plt.plot(x_smooth, y_smooth, 'b-', label='Spline Interpolation')
+        plt.plot(distances, energies, 'tab:blue', label='NEB Images')
+        plt.xlabel('Reaction Coordinate (Å)')
+        plt.ylabel('Relative Energy (eV)')
+        plt.legend()
+        plt.savefig(f'{folder_name}/MEP.png', bbox_inches='tight')
+        plt.close()
+
+        # Save the images (as a trajectory file for ASE GUI or individual XYZs)
+        for i, img in enumerate(images):
+            write(f'{folder_name}/POSCAR-{i}', img, format='vasp', direct=True, sort=True)
+        
+        logging.warning(f"Multiple peaks ({len(peaks)}) in step {step}. Data saved to {folder_name}.")
+
+    else:
+        # Create a smooth curve (100 points) from the discrete images
+        cs = CubicSpline(distances, energies, bc_type='natural')
+        x_smooth = np.linspace(distances[0], distances[-1], 100)
+        y_smooth = cs(x_smooth)
+
+        plt.figure(figsize=(5, 3))
+        plt.plot(x_smooth, y_smooth, 'b-', label='Spline Interpolation')
+        plt.plot(distances, energies, 'tab:blue', label='NEB Images')
+        plt.xlabel('Reaction Coordinate (Å)')
+        plt.ylabel('Relative Energy (eV)')
+        plt.legend()
+        plt.savefig(f'data/neb/MEP_{step}.png', bbox_inches='tight')
+        plt.close()
+    
+    #fig = nebtools.plot_band()
+    #fig.savefig(f'data/neb/MEP.png', bbox_inches='tight')
+    #plt.close(fig)
 
     return dEf, dEr
