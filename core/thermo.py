@@ -163,8 +163,9 @@ def initial_relax(system, calculator):
     if os.path.exists(logfile):
         os.remove(logfile)
 
-    FIRE(UnitCellFilter(system), logfile=logfile).run(fmax=0.05, steps=350)
     FIRE(system, logfile=logfile).run(fmax=0.05, steps=350)
+    FIRE(UnitCellFilter(system), logfile=logfile).run(fmax=0.05, steps=350)
+    
     return system, system.get_potential_energy()
 
 def relax_config(system, move_type, calculator):
