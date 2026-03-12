@@ -190,7 +190,8 @@ class SpectralCollector(HybridSimulation):
         
         # 1. Setup
         all_void_atoms = read(self.config['ensembles']['grand']['voids_file'])
-        symbol = list(self.mu_cache['additives'].keys())[0]
+        symbol = self.config['spectral']['diff_solute']
+        n_solute = self.config['spectral']['n_solute']
         
         # 2. Initial Reference Site
         # Place at the first void and relax
@@ -235,7 +236,7 @@ class SpectralCollector(HybridSimulation):
             self.atoms[int_idx].position = target_void.position
             
             # 5. Decoration Sweep & NEB
-            for n in range(7):
+            for n in range(n_solute + 1):
                 decorated_system = self.atoms.copy()
                 if n > 0:
                     decorated_system = thermo.decorate_environment(

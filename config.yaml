@@ -41,5 +41,7 @@ ensembles:
 spectral:
   enabled: False            # If True, main.py launches SpectralCollector
   do_neb: True             # Calculate diffusion barriers
-  jump_cutoff: 2.15         # Max distance for a valid diffusion hop
+  jump_cutoff: 3.5         # Max distance for a valid diffusion hop
   solute: "Cr"             # Element used for decoration shell
+  diff_solute: "B"         # Diffusing element
+  n_solute: 0              # Number to decorate up to
