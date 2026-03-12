@@ -197,7 +197,7 @@ class SpectralCollector(HybridSimulation):
         # Place at the first void and relax
         self.atoms += thermo.Atoms(symbol, positions=[all_void_atoms[0].position])
         int_idx = len(self.atoms) - 1
-        self.atoms, _ = thermo.relax_config(self.atoms, 'insert', self.calculator)
+        self.atoms, _ = thermo.initial_relax(self.atoms, 'insert', self.calculator)
         
         # write the poscar
         write("POSCAR-0", self.atoms, format='vasp', direct=True, sort=True)

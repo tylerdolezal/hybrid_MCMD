@@ -163,8 +163,8 @@ def initial_relax(system, calculator):
     if os.path.exists(logfile):
         os.remove(logfile)
 
-    FIRE(system, logfile=logfile).run(fmax=0.01, steps=350)
-    FIRE(UnitCellFilter(system), logfile=logfile).run(fmax=0.01, steps=350)
+    FIRE(UnitCellFilter(system), logfile=logfile).run(fmax=0.05, steps=350)
+    FIRE(system, logfile=logfile).run(fmax=0.05, steps=350)
     return system, system.get_potential_energy()
 
 def relax_config(system, move_type, calculator):
@@ -373,7 +373,7 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol):
     qn.run(fmax=0.05, steps=50)
 
     qn = FIRE(neb, maxstep=0.01, logfile=neb_log)
-    qn.run(fmax=0.05, steps=300)
+    qn.run(fmax=0.05, steps=500)
 
     # 6. Extract forward/reverse barriers
     nebtools = NEBTools(images)
