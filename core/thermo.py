@@ -178,9 +178,6 @@ def relax_config(system, move_type, calculator):
 
     log = f"{move_type}_relax.log" if move_type in ['insert', 'delete', 'new_host', 'flip', 'spectral'] else None
 
-    qn = MDMin(system, logfile=log)
-    qn.run(fmax=0.05, steps=30)
-
     dyn = FIRE(system, logfile=log)
     dyn.run(fmax=0.05, steps=250)
     return system, system.get_potential_energy()
