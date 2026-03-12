@@ -319,7 +319,7 @@ from ase.mep import NEB, NEBTools
 import matplotlib.pyplot as plt
 import logging
 
-def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol):
+def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, n_images=6):
     """
     NEB wrapper using a 3-point guided interpolation (Start -> Saddle -> End).
     Dynamically identifies the interstitial atom by its symbol.
@@ -344,9 +344,9 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol):
     
     idx = indices[0]
 
-    # 2. Setup 8 images (initial, 6 intermediate, final)
+    # 2. Setup n_images images (initial, 6 intermediate, final)
     images = [atoms_0.copy()]
-    for _ in range(6):
+    for _ in range(n_images - 2):
         images.append(atoms_0.copy())
     images.append(atoms_1.copy())
 

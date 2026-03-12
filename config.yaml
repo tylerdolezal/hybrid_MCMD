@@ -45,3 +45,4 @@ spectral:
   solute: "Cr"             # Element used for decoration shell
   diff_solute: "B"         # Diffusing element
   n_solute: 0              # Number to decorate up to
+  n_images: 8              # Number of images to generate for NEB

@@ -192,6 +192,7 @@ class SpectralCollector(HybridSimulation):
         all_void_atoms = read(self.config['ensembles']['grand']['voids_file'])
         symbol = self.config['spectral']['diff_solute']
         n_solute = self.config['spectral']['n_solute']
+        n_images = self.config['spectral']['n_images']
         
         # 2. Initial Reference Site
         # Place at the first void and relax
@@ -251,7 +252,7 @@ class SpectralCollector(HybridSimulation):
                 if self.run_neb:
                     neb_start = final_system.copy()
                     neb_start[int_idx].position = initial_pos
-                    dEf, dEr = thermo.run_neb_calculation(neb_start, final_system, self._init_driver, symbol)
+                    dEf, dEr = thermo.run_neb_calculation(neb_start, final_system, self._init_driver, symbol, n_images)
 
                 io.record_spectral_entry(final_energy, dEf, dEr, final_system, n, self.solute)
 
