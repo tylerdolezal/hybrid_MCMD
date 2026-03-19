@@ -47,3 +47,4 @@ spectral:
   n_solute: 0              # Number to decorate up to
   n_images: 8              # Number of images to generate for NEB
   r_freeze: 12.0           # Radius to freeze for NEB (set to 0.0 for no freeze)
+  spring_k: 5.0            # Spring constant for NEB calcs

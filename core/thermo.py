@@ -176,10 +176,13 @@ def relax_config(system, move_type, calculator):
     if os.path.exists(f"{move_type}_relax.log"):
         os.remove(f"{move_type}_relax.log")
 
-    log = f"{move_type}_relax.log" if move_type in ['insert', 'delete', 'new_host', 'flip', 'spectral'] else None
+    log = f"{move_type}_relax.log"
+    fmax = 0.2
+    if move_type in ['insert', 'delete', 'new_host', 'swap_ints']:
+        fmax = 0.1
 
     dyn = FIRE(system, logfile=log)
-    dyn.run(fmax=0.05, steps=250)
+    dyn.run(fmax=fmax, steps=250)
     return system, system.get_potential_energy()
 
 def place_near_host(atoms, host_index, bc_index):
@@ -319,7 +322,7 @@ from ase.mep import NEB, NEBTools
 import matplotlib.pyplot as plt
 import logging
 
-def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, step, n_images=8, radius=None):
+def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, config, step):
     """
     NEB wrapper using a 3-point guided interpolation (Start -> Saddle -> End).
     Dynamically identifies the interstitial atom by its symbol.
@@ -327,6 +330,14 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, step, n
 
     # Define the log path
     neb_log = 'neb_current.log'
+
+    n_images = config['spectral']['n_images']
+    radius = config['spectral']['r_freeze']
+    symbol = config['spectral']['diff_solute']
+    spring_K = config['spectral']['spring_k']
+
+    if radius == 0.0:
+        radius = None
 
     # 1. Delete the log file if it exists to start fresh for this event
     if os.path.exists(neb_log):
@@ -379,7 +390,7 @@ def run_neb_calculation(atoms_0, atoms_1, calculator_setup_func, symbol, step, n
         images[i].positions[idx] = interstitial_pos
 
     # 4. Initialize NEB and Calculators
-    neb = NEB(images, k=0.5, climb=True, parallel=True)
+    neb = NEB(images, k=spring_K, climb=True, parallel=True)
     
     # Assign unique calculators to each image to prevent state conflicts
     for img in images:
