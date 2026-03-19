@@ -35,8 +35,8 @@ ensembles:
     enabled: False
     voids_file: "voids-POSCAR-S5" # Moved here from system
     additives:
-      B: { base_mu: -6.46, c_target: 1e-4 }
-      C: { base_mu: -7.51, c_target: 1e-3 }
+      B: {base_mu: -6.69810} # user-defined mu values
+      C: {base_mu: -7.68855} # user-defined mu values
 
 spectral:
   enabled: False            # If True, main.py launches SpectralCollector

@@ -52,11 +52,7 @@ class HybridSimulation:
             additives = grand_cfg.get('additives', {})
             for symbol, params in additives.items():
                 # We still need the mu calculation for energy references
-                eff_mu = thermo.get_effective_mu(
-                    float(params['base_mu']), 
-                    float(params['c_target']), 
-                    self.temp
-                )
+                eff_mu = float(params['base_mu'])
                 cache['additives'][symbol] = eff_mu
                 logging.info(f"Species {symbol} registered for simulation (Spectral={self.is_spectral})")
         
