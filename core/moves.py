@@ -51,7 +51,9 @@ class MoveSelector:
             if diverse_metal:
                 active_moves.append('swap')
             if N_B > 0:
-                active_moves.extend(['new_host', 'shuffle'])
+                active_moves.append('shuffle')
+                if ens_config['canonical'].get('move_ints', False):
+                    active_moves.append('new_host')
                 if diverse_ints:
                     active_moves.append('swap_ints')
 

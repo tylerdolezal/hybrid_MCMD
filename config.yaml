@@ -23,6 +23,7 @@ ensembles:
   # 1. Canonical (Fixed N, V, T) - Always active for diffusion/swaps
   canonical:
     enabled: True
+    move_ints: False # if True, will enable interstitial moves
 
   # 2. Semi-Grand Canonical (Fixed Δμ, V, T) - For metal identity flips
   semi_grand:
